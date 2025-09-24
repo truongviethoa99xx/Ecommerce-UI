@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/auth';
+import { categoryService } from '../services/categoryService';
 import { 
   UserGroupIcon,
   ShoppingBagIcon,
@@ -11,7 +12,8 @@ import {
   PencilIcon,
   TrashIcon,
   PlusIcon,
-  FunnelIcon
+  FunnelIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -27,6 +29,11 @@ const Admin = () => {
   const [users, setUsers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [categorySearchTerm, setCategorySearchTerm] = useState('');
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [isSubmittingCategory, setIsSubmittingCategory] = useState(false);
 
   useEffect(() => {
     fetchAdminData();
@@ -35,6 +42,9 @@ const Admin = () => {
   const fetchAdminData = async () => {
     try {
       setLoading(true);
+      
+      // Fetch categories
+      await fetchCategories();
       
       // Mock admin data
       setStats({
@@ -146,11 +156,68 @@ const Admin = () => {
       ]);
 
     } catch (error) {
-      console.error('Error fetching admin data:', error);
+      // Handle error silently
     } finally {
       setLoading(false);
     }
   };
+
+  // Category Management Functions
+  const fetchCategories = async () => {
+    try {
+      const categoriesData = await categoryService.getCategories();
+      setCategories(categoriesData.data || categoriesData || []);
+    } catch (error) {
+      // Handle error silently
+    }
+  };
+
+  const handleAddCategory = () => {
+    setEditingCategory(null);
+    setShowCategoryModal(true);
+  };
+
+  const handleEditCategory = (category) => {
+    setEditingCategory(category);
+    setShowCategoryModal(true);
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa danh mục này?')) {
+      try {
+        await categoryService.deleteCategory(id);
+        await fetchCategories();
+      } catch (error) {
+        // Handle error silently
+      }
+    }
+  };
+
+  const handleSubmitCategory = async (data) => {
+    try {
+      setIsSubmittingCategory(true);
+      
+      if (editingCategory) {
+        await categoryService.updateCategory(editingCategory.id, data);
+      } else {
+        await categoryService.createCategory(data);
+      }
+      
+      await fetchCategories();
+      setShowCategoryModal(false);
+      setEditingCategory(null);
+    } catch (error) {
+      // Handle error silently
+    } finally {
+      setIsSubmittingCategory(false);
+    }
+  };
+
+  // Filter categories based on search term
+  const filteredCategories = categories.filter(category =>
+    category.name.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
+    (category.description && category.description.toLowerCase().includes(categorySearchTerm.toLowerCase()))
+  );
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -237,6 +304,7 @@ const Admin = () => {
             <nav className="flex space-x-8">
               {[
                 { id: 'overview', label: 'Tổng quan', icon: ChartBarIcon },
+                { id: 'categories', label: 'Danh mục', icon: StarIcon },
                 { id: 'users', label: 'Người dùng', icon: UserGroupIcon },
                 { id: 'orders', label: 'Đơn hàng', icon: ShoppingBagIcon },
                 { id: 'products', label: 'Sản phẩm', icon: CurrencyDollarIcon }
@@ -568,6 +636,104 @@ const Admin = () => {
           </div>
         )}
 
+        {/* Categories Tab */}
+        {activeTab === 'categories' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">Quản lý danh mục</h2>
+              <Button 
+                onClick={handleAddCategory}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <PlusIcon className="h-4 w-4 mr-2" />
+                Thêm danh mục
+              </Button>
+            </div>
+            
+            {/* Search Bar */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FunnelIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <Input 
+                placeholder="Tìm kiếm danh mục..." 
+                className="pl-10"
+                value={categorySearchTerm}
+                onChange={(e) => setCategorySearchTerm(e.target.value)}
+              />
+            </div>
+
+            {/* Categories Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredCategories.map((category) => (
+                <Card key={category.id} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {category.name}
+                      </h3>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEditCategory(category)}
+                          className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                          title="Chỉnh sửa"
+                        >
+                          <PencilIcon className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCategory(category.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Xóa"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <p className="text-gray-600 text-sm mb-4">
+                      {category.description || 'Không có mô tả'}
+                    </p>
+                    
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>ID: {category.id}</span>
+                      <span>
+                        Tạo: {new Date(category.createdAt).toLocaleDateString('vi-VN')}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {filteredCategories.length === 0 && (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <div className="text-gray-400 mb-4">
+                    <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {categorySearchTerm ? 'Không tìm thấy danh mục' : 'Chưa có danh mục nào'}
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    {categorySearchTerm 
+                      ? 'Thử tìm kiếm với từ khóa khác'
+                      : 'Bắt đầu bằng cách thêm danh mục đầu tiên'
+                    }
+                  </p>
+                  {!categorySearchTerm && (
+                    <Button onClick={handleAddCategory} className="bg-blue-600 hover:bg-blue-700">
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      Thêm danh mục đầu tiên
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
         {/* Products Tab */}
         {activeTab === 'products' && (
           <div className="space-y-6">
@@ -668,8 +834,82 @@ const Admin = () => {
           </div>
         )}
       </div>
+
+      {/* Category Modal */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {editingCategory ? 'Chỉnh sửa danh mục' : 'Thêm danh mục mới'}
+              </h3>
+              <button
+                onClick={() => setShowCategoryModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              const data = {
+                name: formData.get('name'),
+                description: formData.get('description')
+              };
+              handleSubmitCategory(data);
+            }} className="space-y-4">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Tên danh mục *
+                </label>
+                <Input
+                  name="name"
+                  defaultValue={editingCategory?.name || ''}
+                  required
+                  placeholder="Nhập tên danh mục"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                  Mô tả
+                </label>
+                <textarea
+                  name="description"
+                  defaultValue={editingCategory?.description || ''}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Nhập mô tả danh mục (tùy chọn)"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingCategory}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmittingCategory 
+                    ? (editingCategory ? 'Đang cập nhật...' : 'Đang tạo...')
+                    : (editingCategory ? 'Cập nhật' : 'Tạo mới')
+                  }
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
+  };
 
 export default Admin;

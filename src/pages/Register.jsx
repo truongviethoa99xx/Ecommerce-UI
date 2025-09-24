@@ -34,7 +34,7 @@ const Register = () => {
       toast.success('Đăng ký thành công!');
       navigate('/');
     } catch (error) {
-      console.error('Register error:', error);
+      // Handle error silently
       toast.error(error.response?.data?.message || 'Đăng ký thất bại');
     } finally {
       setLoading(false);

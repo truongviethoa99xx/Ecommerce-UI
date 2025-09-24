@@ -93,7 +93,7 @@ const Products = () => {
       }
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      // Handle error silently
       toast.error('Không thể tải dữ liệu sản phẩm');
       
       // Enhanced mock data for demonstration

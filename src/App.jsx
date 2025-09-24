@@ -18,6 +18,7 @@ import Orders from "./pages/Orders";
 import Profile from "./pages/Profile";
 import Wishlist from "./pages/Wishlist";
 import Admin from "./pages/Admin";
+import AdminCategories from "./pages/AdminCategories";
 import Categories from "./pages/Categories";
 import CategoryProducts from "./pages/CategoryProducts";
 
@@ -46,6 +47,7 @@ function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="wishlist" element={<Wishlist />} />
             <Route path="admin/*" element={<Admin />} />
+            <Route path="admin/categories" element={<AdminCategories />} />
           </Route>
 
           {/* Auth Routes (without main layout) */}

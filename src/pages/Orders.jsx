@@ -54,7 +54,7 @@ const Orders = () => {
       const ordersData = await orderService.getUserOrders(user.id);
       setOrders(ordersData.data || ordersData);
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      // Handle error silently
       toast.error('Không thể tải danh sách đơn hàng');
       
       // Mock data for demo

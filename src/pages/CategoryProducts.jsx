@@ -25,7 +25,7 @@ const CategoryProducts = () => {
       setProducts(productsData.data || productsData);
       setCategory(categoryData);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      // Handle error silently
       toast.error('Không thể tải dữ liệu');
       
       // Mock data

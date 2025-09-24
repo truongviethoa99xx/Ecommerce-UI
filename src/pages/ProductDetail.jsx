@@ -50,7 +50,7 @@ const ProductDetail = () => {
       const productData = await productService.getProduct(id);
       setProduct(productData);
     } catch (error) {
-      console.error('Error fetching product:', error);
+      // Handle error silently
       toast.error('Không thể tải thông tin sản phẩm');
       
       // Enhanced mock data for demonstration
@@ -171,7 +171,7 @@ const ProductDetail = () => {
       ];
       setRelatedProducts(mockRelatedProducts);
     } catch (error) {
-      console.error('Error fetching related products:', error);
+      // Handle error silently
     }
   };
 
@@ -214,7 +214,7 @@ const ProductDetail = () => {
       ];
       setReviews(mockReviews);
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      // Handle error silently
     } finally {
       setReviewsLoading(false);
     }
@@ -251,7 +251,7 @@ const ProductDetail = () => {
           url: window.location.href,
         });
       } catch (error) {
-        console.log('Error sharing:', error);
+        // Handle error silently
       }
     } else {
       // Fallback: copy to clipboard

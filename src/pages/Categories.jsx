@@ -17,7 +17,7 @@ const Categories = () => {
       const categoriesData = await productService.getCategories();
       setCategories(categoriesData.data || categoriesData);
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      // Handle error silently
       toast.error('Không thể tải danh sách danh mục');
       
       // Mock data

@@ -78,7 +78,7 @@ const Home = () => {
         setFeaturedProducts(productsData.data?.slice(0, 4) || productsData.slice(0, 4));
         setCategories(categoriesData.data || categoriesData);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        // Handle error silently
         toast.error('Không thể tải dữ liệu');
         
         // Mock data for demonstration

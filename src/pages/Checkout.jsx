@@ -177,7 +177,7 @@ const Checkout = () => {
       toast.success('Đặt hàng thành công!');
       navigate('/orders');
     } catch (error) {
-      console.error('Checkout error:', error);
+      // Handle error silently
       toast.error('Đặt hàng thất bại, vui lòng thử lại');
     } finally {
       setIsSubmitting(false);

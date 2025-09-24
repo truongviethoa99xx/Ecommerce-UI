@@ -112,7 +112,7 @@ const Wishlist = () => {
       
       setWishlistItems(mockWishlist);
     } catch (error) {
-      console.error('Error fetching wishlist:', error);
+      // Handle error silently
       toast.error('Không thể tải danh sách yêu thích');
     } finally {
       setLoading(false);
@@ -208,7 +208,7 @@ const Wishlist = () => {
           url: window.location.href,
         });
       } catch (error) {
-        console.log('Error sharing:', error);
+        // Handle error silently
       }
     } else {
       navigator.clipboard.writeText(window.location.href);
