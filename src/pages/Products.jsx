@@ -1,39 +1,42 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import ProductCard from '../components/ProductCard';
-import { productService } from '../services/productService';
-import { 
-  MagnifyingGlassIcon, 
-  FunnelIcon, 
-  AdjustmentsHorizontalIcon,
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import ProductCard from "../components/ProductCard";
+import { productService } from "../services/productService";
+import {
+  MagnifyingGlassIcon,
+  FunnelIcon,
   Squares2X2Icon,
   ListBulletIcon,
   XMarkIcon,
   StarIcon,
-  ChevronDownIcon
-} from '@heroicons/react/24/outline';
-import { toast } from 'react-toastify';
+  ChevronDownIcon,
+} from "@heroicons/react/24/outline";
+import { toast } from "react-toastify";
 
 const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
-  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
+  const [searchTerm, setSearchTerm] = useState(
+    searchParams.get("search") || ""
+  );
+  const [selectedCategory, setSelectedCategory] = useState(
+    searchParams.get("category") || ""
+  );
+  const [sortBy, setSortBy] = useState(searchParams.get("sort") || "newest");
   const [priceRange, setPriceRange] = useState({
-    min: searchParams.get('minPrice') || '',
-    max: searchParams.get('maxPrice') || ''
+    min: searchParams.get("minPrice") || "",
+    max: searchParams.get("maxPrice") || "",
   });
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [viewMode, setViewMode] = useState("grid"); // 'grid' or 'list'
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(12);
-  const [ratingFilter, setRatingFilter] = useState('');
-  const [stockFilter, setStockFilter] = useState('all'); // 'all', 'in_stock', 'out_of_stock'
+  const [ratingFilter, setRatingFilter] = useState("");
+  const [stockFilter, setStockFilter] = useState("all"); // 'all', 'in_stock', 'out_of_stock'
 
   useEffect(() => {
     fetchData();
@@ -42,162 +45,200 @@ const Products = () => {
   useEffect(() => {
     // Update URL params when filters change
     const params = new URLSearchParams();
-    if (searchTerm) params.set('search', searchTerm);
-    if (selectedCategory) params.set('category', selectedCategory);
-    if (sortBy !== 'newest') params.set('sort', sortBy);
-    if (priceRange.min) params.set('minPrice', priceRange.min);
-    if (priceRange.max) params.set('maxPrice', priceRange.max);
-    if (ratingFilter) params.set('rating', ratingFilter);
-    if (stockFilter !== 'all') params.set('stock', stockFilter);
-    
+    if (searchTerm) params.set("search", searchTerm);
+    if (selectedCategory) params.set("category", selectedCategory);
+    if (sortBy !== "newest") params.set("sort", sortBy);
+    if (priceRange.min) params.set("minPrice", priceRange.min);
+    if (priceRange.max) params.set("maxPrice", priceRange.max);
+    if (ratingFilter) params.set("rating", ratingFilter);
+    if (stockFilter !== "all") params.set("stock", stockFilter);
+
     setSearchParams(params);
     if (currentPage !== 1) {
       setCurrentPage(1); // Reset to first page when filters change
     }
-  }, [searchTerm, selectedCategory, sortBy, priceRange, ratingFilter, stockFilter]);
+  }, [
+    searchTerm,
+    selectedCategory,
+    sortBy,
+    priceRange,
+    ratingFilter,
+    stockFilter,
+  ]);
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(price);
+  };
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       const params = {
         page: currentPage,
         limit: itemsPerPage,
         search: searchTerm,
         categoryId: selectedCategory,
-        sortBy: sortBy === 'newest' ? 'createdAt' : sortBy === 'price_desc' ? 'price' : sortBy,
-        sortOrder: sortBy === 'price_desc' || sortBy === 'name_desc' ? 'DESC' : 'ASC',
+        sortBy:
+          sortBy === "newest"
+            ? "createdAt"
+            : sortBy === "price_desc"
+            ? "price"
+            : sortBy,
+        sortOrder:
+          sortBy === "price_desc" || sortBy === "name_desc" ? "DESC" : "ASC",
         minPrice: priceRange.min,
-        maxPrice: priceRange.max
+        maxPrice: priceRange.max,
       };
 
       // Remove empty params
-      Object.keys(params).forEach(key => {
-        if (!params[key] || params[key] === 'all') delete params[key];
+      Object.keys(params).forEach((key) => {
+        if (!params[key] || params[key] === "all") delete params[key];
       });
 
       const [productsData, categoriesData] = await Promise.all([
         productService.getProducts(params),
-        productService.getCategories()
+        productService.getCategories(),
       ]);
 
       // Handle API response format - could be array or object with data/pagination
-      if (productsData.data && productsData.pagination) {
+      if (productsData.data && productsData.totalPages > 0) {
         setProducts(productsData.data);
-        setTotalProducts(productsData.pagination.total);
-        setTotalPages(productsData.pagination.totalPages);
+        setTotalProducts(productsData.total);
+        setTotalPages(productsData.totalPages);
       } else {
         setProducts(Array.isArray(productsData) ? productsData : []);
         setTotalProducts(Array.isArray(productsData) ? productsData.length : 0);
-        setTotalPages(Math.ceil((Array.isArray(productsData) ? productsData.length : 0) / itemsPerPage));
+        setTotalPages(
+          Math.ceil(
+            (Array.isArray(productsData) ? productsData.length : 0) /
+              itemsPerPage
+          )
+        );
       }
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
     } catch (error) {
+      console.log("🚀 ~ fetchData ~ error:", error);
       // Handle error silently
-      toast.error('Không thể tải dữ liệu sản phẩm');
-      
+      toast.error("Không thể tải dữ liệu sản phẩm");
+
       // Enhanced mock data for demonstration
       const mockProducts = [
         {
           id: 1,
-          name: 'iPhone 15 Pro Max 256GB',
-          description: 'Điện thoại thông minh cao cấp từ Apple với camera chuyên nghiệp 48MP, chip A17 Pro',
+          name: "iPhone 15 Pro Max 256GB",
+          description:
+            "Điện thoại thông minh cao cấp từ Apple với camera chuyên nghiệp 48MP, chip A17 Pro",
           price: 30000000,
           originalPrice: 35000000,
-          image: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400',
+          image:
+            "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400",
           stock: 10,
-          category: { name: 'Điện thoại', id: 1 },
+          category: { name: "Điện thoại", id: 1 },
           rating: 4.8,
           reviewCount: 245,
           discount: 14,
           isNew: true,
-          isBestSeller: true
+          isBestSeller: true,
         },
         {
           id: 2,
-          name: 'MacBook Pro M3 14-inch',
-          description: 'Laptop chuyên nghiệp cho designer và developer với chip M3 mạnh mẽ',
+          name: "MacBook Pro M3 14-inch",
+          description:
+            "Laptop chuyên nghiệp cho designer và developer với chip M3 mạnh mẽ",
           price: 45000000,
           originalPrice: 50000000,
-          image: 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400',
+          image:
+            "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400",
           stock: 5,
-          category: { name: 'Laptop', id: 2 },
+          category: { name: "Laptop", id: 2 },
           rating: 4.9,
           reviewCount: 189,
           discount: 10,
           isNew: false,
-          isBestSeller: true
+          isBestSeller: true,
         },
         {
           id: 3,
-          name: 'AirPods Pro 2nd Generation',
-          description: 'Tai nghe không dây chống ồn với chip H2 và case sạc MagSafe',
+          name: "AirPods Pro 2nd Generation",
+          description:
+            "Tai nghe không dây chống ồn với chip H2 và case sạc MagSafe",
           price: 6000000,
           originalPrice: 7000000,
-          image: 'https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=400',
+          image:
+            "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=400",
           stock: 15,
-          category: { name: 'Phụ kiện', id: 3 },
+          category: { name: "Phụ kiện", id: 3 },
           rating: 4.7,
           reviewCount: 156,
           discount: 14,
           isNew: false,
-          isBestSeller: false
+          isBestSeller: false,
         },
         {
           id: 4,
-          name: 'iPad Air M2 Wi-Fi 128GB',
-          description: 'Máy tính bảng đa năng cho công việc và giải trí với chip M2',
+          name: "iPad Air M2 Wi-Fi 128GB",
+          description:
+            "Máy tính bảng đa năng cho công việc và giải trí với chip M2",
           price: 18000000,
           originalPrice: 20000000,
-          image: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400',
+          image:
+            "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400",
           stock: 8,
-          category: { name: 'Tablet', id: 4 },
+          category: { name: "Tablet", id: 4 },
           rating: 4.6,
           reviewCount: 203,
           discount: 10,
           isNew: true,
-          isBestSeller: false
+          isBestSeller: false,
         },
         {
           id: 5,
-          name: 'Samsung Galaxy S24 Ultra',
-          description: 'Flagship Android với camera tuyệt vời 200MP và S Pen tích hợp',
+          name: "Samsung Galaxy S24 Ultra",
+          description:
+            "Flagship Android với camera tuyệt vời 200MP và S Pen tích hợp",
           price: 28000000,
           originalPrice: 32000000,
-          image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400',
+          image:
+            "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400",
           stock: 12,
-          category: { name: 'Điện thoại', id: 1 },
+          category: { name: "Điện thoại", id: 1 },
           rating: 4.5,
           reviewCount: 167,
           discount: 13,
           isNew: true,
-          isBestSeller: false
+          isBestSeller: false,
         },
         {
           id: 6,
-          name: 'Dell XPS 13 Plus',
-          description: 'Laptop mỏng nhẹ cao cấp cho doanh nhân với thiết kế premium',
+          name: "Dell XPS 13 Plus",
+          description:
+            "Laptop mỏng nhẹ cao cấp cho doanh nhân với thiết kế premium",
           price: 35000000,
           originalPrice: 38000000,
-          image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400',
+          image:
+            "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400",
           stock: 7,
-          category: { name: 'Laptop', id: 2 },
+          category: { name: "Laptop", id: 2 },
           rating: 4.4,
           reviewCount: 89,
           discount: 8,
           isNew: false,
-          isBestSeller: false
-        }
+          isBestSeller: false,
+        },
       ];
-      
+
       setProducts(mockProducts);
       setTotalProducts(mockProducts.length);
       setTotalPages(Math.ceil(mockProducts.length / itemsPerPage));
       setCategories([
-        { id: 1, name: 'Điện thoại', slug: 'dien-thoai', count: 2 },
-        { id: 2, name: 'Laptop', slug: 'laptop', count: 2 },
-        { id: 3, name: 'Phụ kiện', slug: 'phu-kien', count: 1 },
-        { id: 4, name: 'Tablet', slug: 'tablet', count: 1 }
+        { id: 1, name: "Điện thoại", slug: "dien-thoai", count: 2 },
+        { id: 2, name: "Laptop", slug: "laptop", count: 2 },
+        { id: 3, name: "Phụ kiện", slug: "phu-kien", count: 1 },
+        { id: 4, name: "Tablet", slug: "tablet", count: 1 },
       ]);
     } finally {
       setLoading(false);
@@ -210,31 +251,31 @@ const Products = () => {
   };
 
   const handleClearFilters = () => {
-    setSearchTerm('');
-    setSelectedCategory('');
-    setSortBy('newest');
-    setPriceRange({ min: '', max: '' });
-    setRatingFilter('');
-    setStockFilter('all');
+    setSearchTerm("");
+    setSelectedCategory("");
+    setSortBy("newest");
+    setPriceRange({ min: "", max: "" });
+    setRatingFilter("");
+    setStockFilter("all");
     setSearchParams({});
   };
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const getSortLabel = (value) => {
     const labels = {
-      'newest': 'Mới nhất',
-      'name': 'Tên A-Z',
-      'name_desc': 'Tên Z-A',
-      'price': 'Giá thấp đến cao',
-      'price_desc': 'Giá cao đến thấp',
-      'rating': 'Đánh giá cao nhất',
-      'popular': 'Phổ biến nhất'
+      newest: "Mới nhất",
+      name: "Tên A-Z",
+      name_desc: "Tên Z-A",
+      price: "Giá thấp đến cao",
+      price_desc: "Giá cao đến thấp",
+      rating: "Đánh giá cao nhất",
+      popular: "Phổ biến nhất",
     };
-    return labels[value] || 'Mới nhất';
+    return labels[value] || "Mới nhất";
   };
 
   const ProductListItem = ({ product }) => (
@@ -242,11 +283,11 @@ const Products = () => {
       <div className="flex gap-6">
         <div className="relative flex-shrink-0">
           <img
-            src={product.image}
+            src={product.images}
             alt={product.name}
             className="w-32 h-32 object-cover rounded-lg"
           />
-          {product.discount && (
+          {product.discount && product.discount > 0 && (
             <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-md text-xs font-semibold">
               -{product.discount}%
             </div>
@@ -254,23 +295,34 @@ const Products = () => {
         </div>
         <div className="flex-1">
           <div className="flex justify-between items-start mb-2">
-            <h3 className="text-xl font-semibold text-gray-900 hover:text-blue-600 cursor-pointer">
+            <h3 className="text-xl font-semibold text-gray-900 hover:text-orange-500 cursor-pointer">
               {product.name}
             </h3>
             <div className="flex items-center space-x-2">
               {product.isNew && (
-                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Mới</span>
+                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                  Mới
+                </span>
               )}
               {product.isBestSeller && (
-                <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">Bán chạy</span>
+                <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
+                  Bán chạy
+                </span>
               )}
             </div>
           </div>
-          <p className="text-gray-600 mb-3 line-clamp-2">{product.description}</p>
+          <p className="text-gray-600 mb-3 line-clamp-2">
+            {product.description}
+          </p>
           <div className="flex items-center mb-3">
             <div className="flex text-yellow-400">
               {[...Array(5)].map((_, i) => (
-                <StarIcon key={i} className={`h-4 w-4 ${i < Math.floor(product.rating) ? 'fill-current' : ''}`} />
+                <StarIcon
+                  key={i}
+                  className={`h-4 w-4 ${
+                    i < Math.floor(product.rating) ? "fill-current" : ""
+                  }`}
+                />
               ))}
             </div>
             <span className="text-sm text-gray-500 ml-2">
@@ -280,17 +332,23 @@ const Products = () => {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-2">
               <span className="text-2xl font-bold text-blue-600">
-                {product.price.toLocaleString('vi-VN')}đ
+                {formatPrice(product.price)}
               </span>
               {product.originalPrice && (
                 <span className="text-lg text-gray-500 line-through">
-                  {product.originalPrice.toLocaleString('vi-VN')}đ
+                  {formatPrice(product.originalPrice)}
                 </span>
               )}
             </div>
             <div className="flex items-center space-x-3">
-              <span className={`text-sm ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {product.stock > 0 ? `Còn ${product.stock} sản phẩm` : 'Hết hàng'}
+              <span
+                className={`text-sm ${
+                  product.stock > 0 ? "text-  green-600" : "text-red-600"
+                }`}
+              >
+                {product.stock > 0
+                  ? `Còn ${product.stock} sản phẩm`
+                  : "Hết hàng"}
               </span>
               <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium">
                 Thêm vào giỏ
@@ -307,13 +365,6 @@ const Products = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-            Sản phẩm
-          </h1>
-          <p className="text-lg text-gray-600 mb-6">
-            Khám phá hàng nghìn sản phẩm chất lượng cao
-          </p>
-          
           {/* Search Bar */}
           <form onSubmit={handleSearchSubmit} className="mb-6">
             <div className="relative max-w-2xl">
@@ -342,7 +393,11 @@ const Products = () => {
 
         <div className="lg:grid lg:grid-cols-12 lg:gap-8">
           {/* Filters Sidebar */}
-          <div className={`lg:col-span-3 ${showFilters ? 'block' : 'hidden'} lg:block mb-8 lg:mb-0`}>
+          <div
+            className={`lg:col-span-3 ${
+              showFilters ? "block" : "hidden"
+            } lg:block mb-8 lg:mb-0`}
+          >
             <div className="bg-white rounded-xl shadow-md p-6 sticky top-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">Bộ lọc</h2>
@@ -364,23 +419,29 @@ const Products = () => {
 
               {/* Category Filter */}
               <div className="mb-6">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Danh mục</h3>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                  Danh mục
+                </h3>
                 <div className="space-y-2">
                   <label className="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 rounded">
                     <div className="flex items-center">
                       <input
                         type="radio"
                         value=""
-                        checked={selectedCategory === ''}
-                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        checked={selectedCategory === ""}
+                        onChange={(e) => {
+                          setSelectedCategory(e.target.value);
+                        }}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                       />
                       <span className="ml-3 text-sm text-gray-700">Tất cả</span>
                     </div>
-                    <span className="text-xs text-gray-500">{totalProducts}</span>
                   </label>
                   {categories.map((category) => (
-                    <label key={category.id} className="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 rounded">
+                    <label
+                      key={category.id}
+                      className="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 rounded"
+                    >
                       <div className="flex items-center">
                         <input
                           type="radio"
@@ -389,9 +450,13 @@ const Products = () => {
                           onChange={(e) => setSelectedCategory(e.target.value)}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                         />
-                        <span className="ml-3 text-sm text-gray-700">{category.name}</span>
+                        <span className="ml-3 text-sm text-gray-700">
+                          {category.name}
+                        </span>
                       </div>
-                      <span className="text-xs text-gray-500">{category.count || 0}</span>
+                      <span className="text-xs text-gray-500">
+                        {category.products.length || 0}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -399,85 +464,28 @@ const Products = () => {
 
               {/* Price Range Filter */}
               <div className="mb-6">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Khoảng giá</h3>
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                  Khoảng giá
+                </h3>
                 <div className="space-y-3">
                   <input
                     type="number"
                     placeholder="Từ (VNĐ)"
                     value={priceRange.min}
-                    onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
+                    onChange={(e) =>
+                      setPriceRange({ ...priceRange, min: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <input
                     type="number"
                     placeholder="Đến (VNĐ)"
                     value={priceRange.max}
-                    onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
+                    onChange={(e) =>
+                      setPriceRange({ ...priceRange, max: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                </div>
-              </div>
-
-              {/* Rating Filter */}
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Đánh giá</h3>
-                <div className="space-y-2">
-                  {[5, 4, 3, 2, 1].map((rating) => (
-                    <label key={rating} className="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded">
-                      <input
-                        type="radio"
-                        value={rating}
-                        checked={ratingFilter === rating.toString()}
-                        onChange={(e) => setRatingFilter(e.target.value)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <div className="ml-3 flex items-center">
-                        <div className="flex text-yellow-400">
-                          {[...Array(5)].map((_, i) => (
-                            <StarIcon key={i} className={`h-4 w-4 ${i < rating ? 'fill-current' : ''}`} />
-                          ))}
-                        </div>
-                        <span className="ml-1 text-sm text-gray-600">trở lên</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Stock Filter */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Tình trạng</h3>
-                <div className="space-y-2">
-                  <label className="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded">
-                    <input
-                      type="radio"
-                      value="all"
-                      checked={stockFilter === 'all'}
-                      onChange={(e) => setStockFilter(e.target.value)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                    />
-                    <span className="ml-3 text-sm text-gray-700">Tất cả</span>
-                  </label>
-                  <label className="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded">
-                    <input
-                      type="radio"
-                      value="in_stock"
-                      checked={stockFilter === 'in_stock'}
-                      onChange={(e) => setStockFilter(e.target.value)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                    />
-                    <span className="ml-3 text-sm text-gray-700">Còn hàng</span>
-                  </label>
-                  <label className="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded">
-                    <input
-                      type="radio"
-                      value="out_of_stock"
-                      checked={stockFilter === 'out_of_stock'}
-                      onChange={(e) => setStockFilter(e.target.value)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                    />
-                    <span className="ml-3 text-sm text-gray-700">Hết hàng</span>
-                  </label>
                 </div>
               </div>
             </div>
@@ -488,7 +496,10 @@ const Products = () => {
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[...Array(6)].map((_, index) => (
-                  <div key={index} className="bg-white rounded-xl shadow-md animate-pulse">
+                  <div
+                    key={index}
+                    className="bg-white rounded-xl shadow-md animate-pulse"
+                  >
                     <div className="h-48 bg-gray-300 rounded-t-xl"></div>
                     <div className="p-4 space-y-3">
                       <div className="h-4 bg-gray-300 rounded"></div>
@@ -505,27 +516,26 @@ const Products = () => {
                   <div>
                     <p className="text-lg font-medium text-gray-900">
                       {totalProducts} sản phẩm
-                      {searchTerm && <span className="text-gray-600"> cho "{searchTerm}"</span>}
+                      {searchTerm && (
+                        <span className="text-gray-600">
+                          {" "}
+                          cho "{searchTerm}"
+                        </span>
+                      )}
                     </p>
                     {selectedCategory && (
                       <p className="text-sm text-gray-600">
-                        trong danh mục: {categories.find(c => c.id.toString() === selectedCategory)?.name}
+                        trong danh mục:{" "}
+                        {
+                          categories.find(
+                            (c) => c.id.toString() === selectedCategory
+                          )?.name
+                        }
                       </p>
                     )}
                   </div>
-                  
-                  <div className="flex items-center space-x-4">
-                    {/* Items per page */}
-                    <select
-                      value={itemsPerPage}
-                      onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value={12}>12 / trang</option>
-                      <option value={24}>24 / trang</option>
-                      <option value={48}>48 / trang</option>
-                    </select>
 
+                  <div className="flex items-center space-x-4">
                     {/* Sort */}
                     <div className="relative">
                       <select
@@ -547,14 +557,22 @@ const Products = () => {
                     {/* View Toggle */}
                     <div className="hidden sm:flex border border-gray-300 rounded-lg">
                       <button
-                        onClick={() => setViewMode('grid')}
-                        className={`p-2 rounded-l-lg ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+                        onClick={() => setViewMode("grid")}
+                        className={`p-2 rounded-l-lg ${
+                          viewMode === "grid"
+                            ? "bg-blue-600 text-white"
+                            : "text-gray-600 hover:bg-gray-50"
+                        }`}
                       >
                         <Squares2X2Icon className="h-5 w-5" />
                       </button>
                       <button
-                        onClick={() => setViewMode('list')}
-                        className={`p-2 rounded-r-lg ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+                        onClick={() => setViewMode("list")}
+                        className={`p-2 rounded-r-lg ${
+                          viewMode === "list"
+                            ? "bg-blue-600 text-white"
+                            : "text-gray-600 hover:bg-gray-50"
+                        }`}
                       >
                         <ListBulletIcon className="h-5 w-5" />
                       </button>
@@ -565,7 +583,7 @@ const Products = () => {
                 {/* Products */}
                 {products.length > 0 ? (
                   <>
-                    {viewMode === 'grid' ? (
+                    {viewMode === "grid" ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                         {products.map((product) => (
                           <ProductCard key={product.id} product={product} />
@@ -586,7 +604,8 @@ const Products = () => {
                       Không tìm thấy sản phẩm nào
                     </h3>
                     <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                      Thử thay đổi từ khóa tìm kiếm hoặc điều chỉnh bộ lọc để tìm được sản phẩm phù hợp
+                      Thử thay đổi từ khóa tìm kiếm hoặc điều chỉnh bộ lọc để
+                      tìm được sản phẩm phù hợp
                     </p>
                     <button
                       onClick={handleClearFilters}
@@ -601,9 +620,11 @@ const Products = () => {
                 {totalPages > 1 && (
                   <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                     <p className="text-sm text-gray-600">
-                      Hiển thị {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalProducts)} của {totalProducts} sản phẩm
+                      Hiển thị {(currentPage - 1) * itemsPerPage + 1} -{" "}
+                      {Math.min(currentPage * itemsPerPage, totalProducts)} của{" "}
+                      {totalProducts} sản phẩm
                     </p>
-                    
+
                     <nav className="flex space-x-2">
                       <button
                         onClick={() => handlePageChange(currentPage - 1)}
@@ -612,7 +633,7 @@ const Products = () => {
                       >
                         Trước
                       </button>
-                      
+
                       {[...Array(Math.min(5, totalPages))].map((_, index) => {
                         let page;
                         if (totalPages <= 5) {
@@ -624,22 +645,22 @@ const Products = () => {
                         } else {
                           page = currentPage - 2 + index;
                         }
-                        
+
                         return (
                           <button
                             key={page}
                             onClick={() => handlePageChange(page)}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
                               currentPage === page
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white border border-gray-300 text-gray-500 hover:bg-gray-50'
+                                ? "bg-blue-600 text-white"
+                                : "bg-white border border-gray-300 text-gray-500 hover:bg-gray-50"
                             }`}
                           >
                             {page}
                           </button>
                         );
                       })}
-                      
+
                       {totalPages > 5 && currentPage < totalPages - 2 && (
                         <>
                           <span className="px-2 py-2 text-gray-500">...</span>
@@ -651,7 +672,7 @@ const Products = () => {
                           </button>
                         </>
                       )}
-                      
+
                       <button
                         onClick={() => handlePageChange(currentPage + 1)}
                         disabled={currentPage === totalPages}

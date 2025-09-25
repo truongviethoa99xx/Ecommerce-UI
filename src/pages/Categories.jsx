@@ -17,16 +17,7 @@ const Categories = () => {
       const categoriesData = await productService.getCategories();
       setCategories(categoriesData.data || categoriesData);
     } catch (error) {
-      // Handle error silently
       toast.error('Không thể tải danh sách danh mục');
-      
-      // Mock data
-      setCategories([
-        { id: 1, name: 'Điện thoại', slug: 'dien-thoai', description: 'Điện thoại thông minh mới nhất' },
-        { id: 2, name: 'Laptop', slug: 'laptop', description: 'Laptop cho mọi nhu cầu' },
-        { id: 3, name: 'Phụ kiện', slug: 'phu-kien', description: 'Phụ kiện công nghệ' },
-        { id: 4, name: 'Tablet', slug: 'tablet', description: 'Máy tính bảng tiện lợi' }
-      ]);
     } finally {
       setLoading(false);
     }
@@ -52,9 +43,7 @@ const Categories = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Danh mục sản phẩm</h1>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
           {categories.map((category) => (
             <Link
               key={category.id}
@@ -62,8 +51,8 @@ const Categories = () => {
               className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
             >
               <div className="text-center">
-                <div className="text-5xl mb-4">
-                  <img src="https://www.pngfind.com/pngs/m/143-1434482_free-icons-png-red-shopping-icon-transparent-png.png" alt="shopping" width={100} height={100} />
+                <div className="text-5xl mb-4 flex items-center justify-center">
+                  <img src="https://cdn-icons-png.freepik.com/512/8058/8058572.png" alt="shopping" className='w-10 h-10' />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
                   {category.name}

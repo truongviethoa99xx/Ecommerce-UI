@@ -51,6 +51,15 @@ const Admin = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserDetail, setShowUserDetail] = useState(false);
 
+  // Staff management states
+  const [staff, setStaff] = useState([]);
+  const [staffSearchTerm, setStaffSearchTerm] = useState('');
+  const [showStaffModal, setShowStaffModal] = useState(false);
+  const [editingStaff, setEditingStaff] = useState(null);
+  const [isSubmittingStaff, setIsSubmittingStaff] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState(null);
+  const [showStaffDetail, setShowStaffDetail] = useState(false);
+
   useEffect(() => {
     // Check authentication and admin role
     if (!isAuthenticated) {
@@ -70,10 +79,11 @@ const Admin = () => {
     try {
       setLoading(true);
       
-      // Fetch categories and users
+      // Fetch categories, users, and staff
       await Promise.all([
         fetchCategories(),
-        fetchUsers()
+        fetchUsers(),
+        fetchStaff()
       ]);
       
       // Mock admin data
@@ -213,6 +223,17 @@ const Admin = () => {
     }
   };
 
+  // Staff Management Functions
+  const fetchStaff = async () => {
+    try {
+      const staffData = await userService.getStaff();
+      setStaff(staffData.data || staffData || []);
+    } catch (error) {
+      // Handle error silently - fallback to mock data
+      console.log('Using mock staff data');
+    }
+  };
+
   const handleAddCategory = () => {
     setEditingCategory(null);
     setShowCategoryModal(true);
@@ -343,6 +364,111 @@ const Admin = () => {
     }
   };
 
+  // Staff CRUD Functions
+  const handleAddStaff = () => {
+    setEditingStaff(null);
+    setShowStaffModal(true);
+  };
+
+  const handleEditStaff = (staff) => {
+    setEditingStaff(staff);
+    setShowStaffModal(true);
+  };
+
+  const handleViewStaff = async (staff) => {
+    try {
+      if (staff.id) {
+        const staffDetail = await userService.getStaff(staff.id);
+        setSelectedStaff(staffDetail);
+      } else {
+        setSelectedStaff(staff);
+      }
+      setShowStaffDetail(true);
+    } catch (error) {
+      // Fallback to basic staff info
+      console.error('Error fetching staff detail:', error);
+      setSelectedStaff(staff);
+      setShowStaffDetail(true);
+    }
+  };
+
+  const handleToggleStaffStatus = async (staff) => {
+    if (!staff.id) {
+      toast.error('Không thể xác định nhân viên');
+      return;
+    }
+    
+    const newStatus = staff.status === 'active' ? 'inactive' : 'active';
+    try {
+      await userService.updateStaffStatus(staff.id, newStatus);
+      await fetchStaff();
+      toast.success(`Đã ${newStatus === 'active' ? 'kích hoạt' : 'vô hiệu hóa'} nhân viên!`);
+    } catch (error) {
+      toast.error('Không thể thay đổi trạng thái nhân viên');
+    }
+  };
+
+  const handleResetStaffPassword = async (staff) => {
+    if (!staff.id) {
+      toast.error('Không thể xác định nhân viên');
+      return;
+    }
+    
+    if (window.confirm('Bạn có chắc chắn muốn đặt lại mật khẩu về "abc123" cho nhân viên này?')) {
+      try {
+        await userService.resetStaffPassword(staff.id);
+        await fetchStaff();
+        toast.success('Đã đặt lại mật khẩu thành công!');
+      } catch (error) {
+        toast.error('Không thể đặt lại mật khẩu');
+      }
+    }
+  };
+
+  const handleDeleteStaff = async (id) => {
+    if (!id) {
+      toast.error('Không thể xác định nhân viên');
+      return;
+    }
+    
+    if (window.confirm('Bạn có chắc chắn muốn xóa nhân viên này?')) {
+      try {
+        await userService.deleteStaff(id);
+        await fetchStaff();
+        toast.success('Xóa nhân viên thành công!');
+      } catch (error) {
+        toast.error('Không thể xóa nhân viên');
+      }
+    }
+  };
+
+  const handleSubmitStaff = async (data) => {
+    try {
+      setIsSubmittingStaff(true);
+      
+      if (editingStaff && editingStaff.id) {
+        await userService.updateStaff(editingStaff.id, data);
+        toast.success('Cập nhật nhân viên thành công!');
+      } else {
+        await userService.createStaff(data);
+        toast.success('Tạo nhân viên mới thành công!');
+      }
+      
+      await fetchStaff();
+      setShowStaffModal(false);
+      setEditingStaff(null);
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || 'Không thể lưu nhân viên';
+      if (Array.isArray(errorMessage)) {
+        toast.error(`Lỗi: ${errorMessage.join(', ')}`);
+      } else {
+        toast.error(errorMessage);
+      }
+    } finally {
+      setIsSubmittingStaff(false);
+    }
+  };
+
   // Filter categories based on search term
   const filteredCategories = categories.filter(category =>
     category.name.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
@@ -354,6 +480,13 @@ const Admin = () => {
     user.name.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
     user.role.toLowerCase().includes(userSearchTerm.toLowerCase())
+  );
+
+  // Filter staff based on search term
+  const filteredStaff = staff.filter(staff =>
+    staff.name.toLowerCase().includes(staffSearchTerm.toLowerCase()) ||
+    staff.email.toLowerCase().includes(staffSearchTerm.toLowerCase()) ||
+    staff.role.toLowerCase().includes(staffSearchTerm.toLowerCase())
   );
 
   const formatPrice = (price) => {
@@ -444,6 +577,7 @@ const Admin = () => {
                 { id: 'overview', label: 'Tổng quan', icon: ChartBarIcon },
                 { id: 'categories', label: 'Danh mục', icon: StarIcon },
                 { id: 'users', label: 'Người dùng', icon: UserGroupIcon },
+                { id: 'staff', label: 'Nhân viên', icon: UserGroupIcon },
                 { id: 'orders', label: 'Đơn hàng', icon: ShoppingBagIcon },
                 { id: 'products', label: 'Sản phẩm', icon: CurrencyDollarIcon }
               ].map((tab) => (
@@ -743,6 +877,177 @@ const Admin = () => {
                     <Button onClick={handleAddUser} className="bg-blue-600 hover:bg-blue-700">
                       <PlusIcon className="h-4 w-4 mr-2" />
                       Thêm người dùng đầu tiên
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Staff Tab */}
+        {activeTab === 'staff' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">Quản lý nhân viên</h2>
+              <div className="flex space-x-3">
+                <Input 
+                  placeholder="Tìm kiếm nhân viên..." 
+                  className="w-64"
+                  value={staffSearchTerm}
+                  onChange={(e) => setStaffSearchTerm(e.target.value)}
+                />
+                <Button onClick={handleAddStaff}>
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Thêm nhân viên
+                </Button>
+              </div>
+            </div>
+
+            <Card>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Nhân viên
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Vai trò
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Trạng thái
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Ngày tham gia
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Lần cập nhật cuối
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Thao tác
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {filteredStaff.map((staff) => (
+                        <tr key={staff.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div>
+                              <p className="font-medium text-gray-900">{staff.name}</p>
+                              <p className="text-sm text-gray-600">{staff.email}</p>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <Badge variant="destructive">
+                              {staff.role === 'admin' ? 'Admin' : 'Nhân viên'}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-4">
+                            <button
+                              onClick={() => handleToggleStaffStatus(staff)}
+                              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                staff.status === 'active'
+                                  ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                  : 'bg-red-100 text-red-800 hover:bg-red-200'
+                              }`}
+                            >
+                              {getStatusText(staff.status)}
+                            </button>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {formatDate(staff.createdAt || staff.joinDate)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {staff.updatedAt ? formatDate(staff.updatedAt) : 'Chưa cập nhật'}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleViewStaff(staff)}
+                                title="Xem chi tiết"
+                              >
+                                <EyeIcon className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditStaff(staff)}
+                                title="Chỉnh sửa"
+                              >
+                                <PencilIcon className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleResetStaffPassword(staff)}
+                                title="Đặt lại mật khẩu"
+                                className="text-blue-600"
+                              >
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                </svg>
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className={staff.status === 'active' ? 'text-red-600' : 'text-green-600'}
+                                onClick={() => handleToggleStaffStatus(staff)}
+                                title={staff.status === 'active' ? 'Vô hiệu hóa' : 'Kích hoạt'}
+                              >
+                                {staff.status === 'active' ? (
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636" />
+                                  </svg>
+                                ) : (
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                )}
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleDeleteStaff(staff.id)}
+                                title="Xóa nhân viên"
+                                className="text-red-600"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {filteredStaff.length === 0 && (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <div className="text-gray-400 mb-4">
+                    <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {staffSearchTerm ? 'Không tìm thấy nhân viên' : 'Chưa có nhân viên nào'}
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    {staffSearchTerm 
+                      ? 'Thử tìm kiếm với từ khóa khác'
+                      : 'Bắt đầu bằng cách thêm nhân viên đầu tiên'
+                    }
+                  </p>
+                  {!staffSearchTerm && (
+                    <Button onClick={handleAddStaff} className="bg-blue-600 hover:bg-blue-700">
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      Thêm nhân viên đầu tiên
                     </Button>
                   )}
                 </CardContent>
@@ -1381,8 +1686,279 @@ const Admin = () => {
           </div>
         </div>
       )}
+
+      {/* Staff Modal */}
+      {showStaffModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {editingStaff ? 'Chỉnh sửa nhân viên' : 'Thêm nhân viên mới'}
+              </h3>
+              <button
+                onClick={() => setShowStaffModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              const data = {
+                name: formData.get('name'),
+                email: formData.get('email'),
+                password: formData.get('password'),
+                phone: formData.get('phone'),
+                address: formData.get('address')
+              };
+              
+              // Only include role and status when editing
+              if (editingStaff) {
+                data.role = formData.get('role');
+                data.status = formData.get('status');
+                
+                // Remove password if editing and empty
+                if (!data.password) {
+                  delete data.password;
+                }
+              }
+              
+              handleSubmitStaff(data);
+            }} className="space-y-4">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Họ tên *
+                </label>
+                <Input
+                  name="name"
+                  defaultValue={editingStaff?.name || ''}
+                  required
+                  placeholder="Nhập họ tên"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email *
+                </label>
+                <Input
+                  name="email"
+                  type="email"
+                  defaultValue={editingStaff?.email || ''}
+                  required
+                  placeholder="Nhập email"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  Mật khẩu {!editingStaff && '*'}
+                </label>
+                <Input
+                  name="password"
+                  type="password"
+                  required={!editingStaff}
+                  placeholder={editingStaff ? "Để trống nếu không đổi mật khẩu" : "Nhập mật khẩu"}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Số điện thoại
+                </label>
+                <Input
+                  name="phone"
+                  defaultValue={editingStaff?.phone || ''}
+                  placeholder="Nhập số điện thoại"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+                  Địa chỉ
+                </label>
+                <textarea
+                  name="address"
+                  defaultValue={editingStaff?.address || ''}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Nhập địa chỉ"
+                />
+              </div>
+
+              {/* Only show role and status when editing */}
+              {editingStaff && (
+                <>
+                  <div>
+                    <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                      Vai trò *
+                    </label>
+                    <select
+                      name="role"
+                      defaultValue={editingStaff?.role || 'admin'}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="staff">Nhân viên</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                      Trạng thái *
+                    </label>
+                    <select
+                      name="status"
+                      defaultValue={editingStaff?.status || 'active'}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="active">Hoạt động</option>
+                      <option value="inactive">Không hoạt động</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Show info when creating new staff */}
+              {!editingStaff && (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <p className="text-sm text-blue-700">
+                    ℹ️ Nhân viên mới sẽ được tạo với vai trò admin. Trạng thái sẽ được set bởi hệ thống.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowStaffModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingStaff}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmittingStaff 
+                    ? (editingStaff ? 'Đang cập nhật...' : 'Đang tạo...')
+                    : (editingStaff ? 'Cập nhật' : 'Tạo mới')
+                  }
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Staff Detail Modal */}
+      {showStaffDetail && selectedStaff && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">
+                Chi tiết nhân viên
+              </h3>
+              <button
+                onClick={() => setShowStaffDetail(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Họ tên</label>
+                  <p className="text-lg font-medium text-gray-900">{selectedStaff.name}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Email</label>
+                  <p className="text-gray-900">{selectedStaff.email}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Số điện thoại</label>
+                  <p className="text-gray-900">{selectedStaff.phone || 'Chưa cập nhật'}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Vai trò</label>
+                  <Badge variant="destructive">
+                    {selectedStaff.role === 'admin' ? 'Admin' : 'Nhân viên'}
+                  </Badge>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Trạng thái</label>
+                  <Badge variant={getStatusColor(selectedStaff.status)}>
+                    {getStatusText(selectedStaff.status)}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Địa chỉ</label>
+                  <p className="text-gray-900">{selectedStaff.address || 'Chưa cập nhật'}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Ngày tham gia</label>
+                  <p className="text-gray-900">{formatDate(selectedStaff.createdAt || selectedStaff.joinDate)}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Lần cập nhật cuối</label>
+                  <p className="text-gray-900">
+                    {selectedStaff.updatedAt ? formatDate(selectedStaff.updatedAt) : 'Chưa cập nhật'}
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Thông tin bảo mật</label>
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-600">Mật khẩu được mã hóa</p>
+                    <button
+                      onClick={() => handleResetStaffPassword(selectedStaff)}
+                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 transition-colors"
+                    >
+                      Đặt lại mật khẩu
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
+              <button
+                onClick={() => setShowStaffDetail(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Đóng
+              </button>
+              <button
+                onClick={() => {
+                  setShowStaffDetail(false);
+                  handleEditStaff(selectedStaff);
+                }}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Chỉnh sửa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-  };
+};
 
 export default Admin;

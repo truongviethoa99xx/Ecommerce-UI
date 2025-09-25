@@ -70,6 +70,78 @@ class UserService {
       throw error;
     }
   }
+
+  // Staff Management APIs
+  
+  // GET /auth/admin - Lấy danh sách admin (Admin only)
+  async getStaff() {
+    try {
+      const response = await api.get('/auth/admin');
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // POST /auth/admin/:id/status - Cập nhật trạng thái admin
+  async updateStaffStatus(id, status) {
+    try {
+      const response = await api.post(`/auth/admin/${id}/status`, { status });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // POST /auth/admin/:id/reset-password - Đặt lại mật khẩu về abc123
+  async resetStaffPassword(id) {
+    try {
+      const response = await api.post(`/auth/admin/${id}/reset-password`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // POST /auth/admin - Tạo admin mới
+  async createStaff(data) {
+    try {
+      const response = await api.post('/auth/admin', data);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // PATCH /auth/admin/:id - Cập nhật thông tin admin
+  async updateStaff(id, data) {
+    try {
+      const response = await api.patch(`/auth/admin/${id}`, data);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // GET /auth/admin/:id - Lấy thông tin admin theo ID
+  async getStaff(id) {
+    try {
+      const response = await api.get(`/auth/admin/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // DELETE /auth/admin/:id - Xóa admin
+  async deleteStaff(id) {
+    try {
+      const response = await api.delete(`/auth/admin/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 export const userService = new UserService();

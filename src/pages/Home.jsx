@@ -1,22 +1,35 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import ProductCard from '../components/ProductCard';
-import { productService } from '../services/productService';
-import { toast } from 'react-toastify';
-import { 
-  ShoppingBagIcon, 
-  TruckIcon, 
+import {
+  ArrowRightIcon,
+  CreditCardIcon,
   ShieldCheckIcon,
   StarIcon,
-  ArrowRightIcon,
-  CreditCardIcon
+  TruckIcon
 } from '@heroicons/react/24/outline';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import ProductCard from '../components/ProductCard';
+import { productService } from '../services/productService';
+import { reviewService } from '../services/reviewService';
 
 const Home = () => {
   const [products, setProducts] = useState([]);
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [testimonials, setTestimonials] = useState([]);
+
+  useEffect(() => {
+    const fetchTestimonials = async () => {
+      try {
+        const data = await reviewService.getReviews();
+        setTestimonials(data);
+      } catch (error) {
+        console.error("Failed to fetch testimonials", error);
+      }
+    };
+    fetchTestimonials();
+  }, []);
 
   const benefits = [
     {
@@ -36,30 +49,6 @@ const Home = () => {
       title: 'Bảo hành chính hãng',
       description: 'Sản phẩm chính hãng, bảo hành tận nơi',
       color: 'from-purple-400 to-purple-600'
-    }
-  ];
-
-  const testimonials = [
-    {
-      name: 'Nguyễn Thị Mai',
-      comment: 'Sản phẩm chất lượng, giao hàng nhanh. Tôi rất hài lòng với dịch vụ!',
-      rating: 5,
-      avatar: '👩‍💼',
-      location: 'Hà Nội'
-    },
-    {
-      name: 'Trần Văn Nam',
-      comment: 'Dịch vụ khách hàng tuyệt vời, giải quyết vấn đề nhanh chóng và chuyên nghiệp.',
-      rating: 5,
-      avatar: '👨‍💻',
-      location: 'TP.HCM'
-    },
-    {
-      name: 'Lê Thị Hoa',
-      comment: 'Giá cả hợp lý, nhiều sản phẩm để lựa chọn. Sẽ tiếp tục ủng hộ!',
-      rating: 4,
-      avatar: '👩‍🎨',
-      location: 'Đà Nẵng'
     }
   ];
 
@@ -295,39 +284,6 @@ const Home = () => {
               Xem tất cả sản phẩm
               <ArrowRightIcon className="h-5 w-5 ml-2" />
             </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Khách hàng nói gì về chúng tôi
-            </h2>
-            <p className="text-xl text-gray-600">
-              Những phản hồi tích cực từ khách hàng thân thiết
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div key={index} className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow duration-300">
-                <div className="flex items-center mb-4">
-                  <div className="text-3xl mr-3">{testimonial.avatar}</div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900">{testimonial.name}</h4>
-                    <p className="text-sm text-gray-500">{testimonial.location}</p>
-                    <div className="flex text-yellow-400 mt-1">
-                      {[...Array(testimonial.rating)].map((_, i) => (
-                        <StarIcon key={i} className="h-4 w-4 fill-current" />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <p className="text-gray-600 italic">"{testimonial.comment}"</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>
