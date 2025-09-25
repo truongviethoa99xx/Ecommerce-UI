@@ -10,6 +10,7 @@ const Login = () => {
   const navigate = useNavigate();
   const { login, setLoading } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [isAdminLogin, setIsAdminLogin] = useState(false);
   
   const {
     register,
@@ -20,17 +21,35 @@ const Login = () => {
   const onSubmit = async (data) => {
     try {
       setLoading(true);
-      const response = await authService.login(data.email, data.password);
+      let response;
+      
+      if (isAdminLogin) {
+        // Admin login
+        response = await authService.adminLogin(data.email, data.password);
+      } else {
+        // User login
+        response = await authService.login(data.email, data.password);
+      }
       
       // API returns { user, access_token }
       const { user, access_token } = response;
+      
+      // Save login info to store
       login(user, access_token);
       
       toast.success('Đăng nhập thành công!');
-      navigate('/');
+      
+      // Redirect based on user role
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } catch (error) {
-      // Handle error silently
-      toast.error(error.response?.data?.message || 'Đăng nhập thất bại');
+      // Show error message
+      const errorMessage = error.response?.data?.message || error.message || 'Đăng nhập thất bại';
+      toast.error(errorMessage);
+      console.error('Login error:', error);
     } finally {
       setLoading(false);
     }
@@ -41,35 +60,67 @@ const Login = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Đăng nhập tài khoản
+            {isAdminLogin ? 'Đăng nhập Admin' : 'Đăng nhập tài khoản'}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Hoặc{' '}
-            <Link
-              to="/register"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              tạo tài khoản mới
-            </Link>
+            {!isAdminLogin && (
+              <>
+                Hoặc{' '}
+                <Link
+                  to="/register"
+                  className="font-medium text-blue-600 hover:text-blue-500"
+                >
+                  tạo tài khoản mới
+                </Link>
+              </>
+            )}
           </p>
+          
+          {/* Login Type Toggle */}
+          <div className="mt-4 flex justify-center">
+            <div className="bg-gray-100 p-1 rounded-lg flex">
+              <button
+                type="button"
+                onClick={() => setIsAdminLogin(false)}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  !isAdminLogin
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                User
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAdminLogin(true)}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  isAdminLogin
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Admin
+              </button>
+            </div>
+          </div>
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div>
             <label htmlFor="email" className="sr-only">
-              Email
+              {isAdminLogin ? 'Username' : 'Email'}
             </label>
             <input
               {...register('email', {
-                required: 'Email là bắt buộc',
-                pattern: {
+                required: isAdminLogin ? 'Username là bắt buộc' : 'Email là bắt buộc',
+                pattern: isAdminLogin ? undefined : {
                   value: /^\S+@\S+$/i,
                   message: 'Email không hợp lệ'
                 }
               })}
-              type="email"
+              type={isAdminLogin ? 'text' : 'email'}
               className="input"
-              placeholder="Địa chỉ email"
+              placeholder={isAdminLogin ? 'Tên đăng nhập admin' : 'Địa chỉ email'}
             />
             {errors.email && (
               <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>

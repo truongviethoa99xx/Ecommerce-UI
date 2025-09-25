@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
 import { categoryService } from '../services/categoryService';
+import { userService } from '../services/userService';
+import { toast } from 'react-toastify';
 import { 
   UserGroupIcon,
   ShoppingBagIcon,
@@ -22,8 +25,13 @@ import { Input } from '../components/ui/Input';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 const Admin = () => {
+  const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Khôi phục activeTab từ localStorage khi component mount
+    const savedTab = localStorage.getItem('admin-active-tab');
+    return savedTab || 'overview';
+  });
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({});
   const [users, setUsers] = useState([]);
@@ -34,126 +42,148 @@ const Admin = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [isSubmittingCategory, setIsSubmittingCategory] = useState(false);
+  
+  // User management states
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [isSubmittingUser, setIsSubmittingUser] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showUserDetail, setShowUserDetail] = useState(false);
 
   useEffect(() => {
+    // Check authentication and admin role
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    
+    if (user?.role !== 'admin') {
+      navigate('/');
+      return;
+    }
+    
     fetchAdminData();
-  }, []);
+  }, [isAuthenticated, user, navigate]);
 
   const fetchAdminData = async () => {
     try {
       setLoading(true);
       
-      // Fetch categories
-      await fetchCategories();
+      // Fetch categories and users
+      await Promise.all([
+        fetchCategories(),
+        fetchUsers()
+      ]);
       
       // Mock admin data
-      setStats({
-        totalUsers: 1247,
-        totalOrders: 892,
-        totalRevenue: 2456000000,
-        totalProducts: 156,
-        pendingOrders: 23,
-        shippedOrders: 67,
-        deliveredOrders: 145,
-        averageRating: 4.6,
-        growthRate: 12.5
-      });
+      // setStats({
+      //   totalUsers: 1247,
+      //   totalOrders: 892,
+      //   totalRevenue: 2456000000,
+      //   totalProducts: 156,
+      //   pendingOrders: 23,
+      //   shippedOrders: 67,
+      //   deliveredOrders: 145,
+      //   averageRating: 4.6,
+      //   growthRate: 12.5
+      // });
 
-      setUsers([
-        {
-          id: 1,
-          name: 'Nguyễn Văn An',
-          email: 'nguyenvanan@email.com',
-          role: 'customer',
-          status: 'active',
-          joinDate: '2024-01-15',
-          totalOrders: 5,
-          totalSpent: 15600000
-        },
-        {
-          id: 2,
-          name: 'Trần Thị Mai',
-          email: 'tranthimai@email.com',
-          role: 'customer',
-          status: 'active',
-          joinDate: '2024-01-10',
-          totalOrders: 3,
-          totalSpent: 8900000
-        },
-        {
-          id: 3,
-          name: 'Lê Minh Đức',
-          email: 'leminhduc@email.com',
-          role: 'customer',
-          status: 'inactive',
-          joinDate: '2024-01-05',
-          totalOrders: 1,
-          totalSpent: 2400000
-        }
-      ]);
+      // setUsers([
+      //   {
+      //     id: 1,
+      //     name: 'Nguyễn Văn An',
+      //     email: 'nguyenvanan@email.com',
+      //     role: 'customer',
+      //     status: 'active',
+      //     joinDate: '2024-01-15',
+      //     totalOrders: 5,
+      //     totalSpent: 15600000
+      //   },
+      //   {
+      //     id: 2,
+      //     name: 'Trần Thị Mai',
+      //     email: 'tranthimai@email.com',
+      //     role: 'customer',
+      //     status: 'active',
+      //     joinDate: '2024-01-10',
+      //     totalOrders: 3,
+      //     totalSpent: 8900000
+      //   },
+      //   {
+      //     id: 3,
+      //     name: 'Lê Minh Đức',
+      //     email: 'leminhduc@email.com',
+      //     role: 'customer',
+      //     status: 'inactive',
+      //     joinDate: '2024-01-05',
+      //     totalOrders: 1,
+      //     totalSpent: 2400000
+      //   }
+      // ]);
 
-      setOrders([
-        {
-          id: 1,
-          orderNumber: 'DH001',
-          customer: 'Nguyễn Văn An',
-          status: 'pending',
-          total: 30000000,
-          createdAt: '2024-01-15T10:30:00Z',
-          items: 2
-        },
-        {
-          id: 2,
-          orderNumber: 'DH002',
-          customer: 'Trần Thị Mai',
-          status: 'shipped',
-          total: 15600000,
-          createdAt: '2024-01-12T14:20:00Z',
-          items: 1
-        },
-        {
-          id: 3,
-          orderNumber: 'DH003',
-          customer: 'Lê Minh Đức',
-          status: 'delivered',
-          total: 45000000,
-          createdAt: '2024-01-10T09:15:00Z',
-          items: 3
-        }
-      ]);
+      // setOrders([
+      //   {
+      //     id: 1,
+      //     orderNumber: 'DH001',
+      //     customer: 'Nguyễn Văn An',
+      //     status: 'pending',
+      //     total: 30000000,
+      //     createdAt: '2024-01-15T10:30:00Z',
+      //     items: 2
+      //   },
+      //   {
+      //     id: 2,
+      //     orderNumber: 'DH002',
+      //     customer: 'Trần Thị Mai',
+      //     status: 'shipped',
+      //     total: 15600000,
+      //     createdAt: '2024-01-12T14:20:00Z',
+      //     items: 1
+      //   },
+      //   {
+      //     id: 3,
+      //     orderNumber: 'DH003',
+      //     customer: 'Lê Minh Đức',
+      //     status: 'delivered',
+      //     total: 45000000,
+      //     createdAt: '2024-01-10T09:15:00Z',
+      //     items: 3
+      //   }
+      // ]);
 
-      setProducts([
-        {
-          id: 1,
-          name: 'iPhone 15 Pro Max',
-          category: 'Điện thoại',
-          price: 30000000,
-          stock: 15,
-          status: 'active',
-          sales: 89,
-          rating: 4.8
-        },
-        {
-          id: 2,
-          name: 'MacBook Pro M3',
-          category: 'Laptop',
-          price: 45000000,
-          stock: 8,
-          status: 'active',
-          sales: 34,
-          rating: 4.9
-        },
-        {
-          id: 3,
-          name: 'AirPods Pro 2',
-          category: 'Phụ kiện',
-          price: 6000000,
-          stock: 0,
-          status: 'out_of_stock',
-          sales: 156,
-          rating: 4.7
-        }
-      ]);
+      // setProducts([
+      //   {
+      //     id: 1,
+      //     name: 'iPhone 15 Pro Max',
+      //     category: 'Điện thoại',
+      //     price: 30000000,
+      //     stock: 15,
+      //     status: 'active',
+      //     sales: 89,
+      //     rating: 4.8
+      //   },
+      //   {
+      //     id: 2,
+      //     name: 'MacBook Pro M3',
+      //     category: 'Laptop',
+      //     price: 45000000,
+      //     stock: 8,
+      //     status: 'active',
+      //     sales: 34,
+      //     rating: 4.9
+      //   },
+      //   {
+      //     id: 3,
+      //     name: 'AirPods Pro 2',
+      //     category: 'Phụ kiện',
+      //     price: 6000000,
+      //     stock: 0,
+      //     status: 'out_of_stock',
+      //     sales: 156,
+      //     rating: 4.7
+      //   }
+      // ]);
 
     } catch (error) {
       // Handle error silently
@@ -169,6 +199,17 @@ const Admin = () => {
       setCategories(categoriesData.data || categoriesData || []);
     } catch (error) {
       // Handle error silently
+    }
+  };
+
+  // User Management Functions
+  const fetchUsers = async () => {
+    try {
+      const usersData = await userService.getUsers();
+      setUsers(usersData.data || usersData || []);
+    } catch (error) {
+      // Handle error silently - fallback to mock data
+      console.log('Using mock user data');
     }
   };
 
@@ -213,10 +254,106 @@ const Admin = () => {
     }
   };
 
+  // Handle tab change and save to localStorage
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    localStorage.setItem('admin-active-tab', tabId);
+  };
+
+  // User CRUD Functions
+  const handleAddUser = () => {
+    setEditingUser(null);
+    setShowUserModal(true);
+  };
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setShowUserModal(true);
+  };
+
+  const handleViewUser = async (user) => {
+    try {
+      const userDetail = await userService.getUser(user.id);
+      setSelectedUser(userDetail);
+      setShowUserDetail(true);
+    } catch (error) {
+      // Fallback to basic user info
+      setSelectedUser(user);
+      setShowUserDetail(true);
+    }
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
+      try {
+        await userService.deleteUser(id);
+        await fetchUsers();
+        toast.success('Xóa người dùng thành công!');
+      } catch (error) {
+        toast.error('Không thể xóa người dùng');
+      }
+    }
+  };
+
+  const handleToggleUserStatus = async (user) => {
+    const newStatus = user.status === 'active' ? 'inactive' : 'active';
+    try {
+      await userService.toggleUserStatus(user.id, newStatus);
+      await fetchUsers();
+      toast.success(`Đã ${newStatus === 'active' ? 'kích hoạt' : 'vô hiệu hóa'} người dùng!`);
+    } catch (error) {
+      toast.error('Không thể thay đổi trạng thái người dùng');
+    }
+  };
+
+  const handleUpdateUserRole = async (user, newRole) => {
+    try {
+      await userService.updateUserRole(user.id, newRole);
+      await fetchUsers();
+      toast.success('Cập nhật vai trò thành công!');
+    } catch (error) {
+      toast.error('Không thể cập nhật vai trò');
+    }
+  };
+
+  const handleSubmitUser = async (data) => {
+    try {
+      setIsSubmittingUser(true);
+      
+      if (editingUser) {
+        await userService.updateUser(editingUser.id, data);
+        toast.success('Cập nhật người dùng thành công!');
+      } else {
+        await userService.createUser(data);
+        toast.success('Tạo người dùng mới thành công!');
+      }
+      
+      await fetchUsers();
+      setShowUserModal(false);
+      setEditingUser(null);
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || 'Không thể lưu người dùng';
+      if (Array.isArray(errorMessage)) {
+        toast.error(`Lỗi: ${errorMessage.join(', ')}`);
+      } else {
+        toast.error(errorMessage);
+      }
+    } finally {
+      setIsSubmittingUser(false);
+    }
+  };
+
   // Filter categories based on search term
   const filteredCategories = categories.filter(category =>
     category.name.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
     (category.description && category.description.toLowerCase().includes(categorySearchTerm.toLowerCase()))
+  );
+
+  // Filter users based on search term
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+    user.role.toLowerCase().includes(userSearchTerm.toLowerCase())
   );
 
   const formatPrice = (price) => {
@@ -277,7 +414,8 @@ const Admin = () => {
   //   );
   // }
 
-  if (loading) {
+  // Show loading while checking auth or fetching data
+  if (!isAuthenticated || user?.role !== 'admin' || loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -311,7 +449,7 @@ const Admin = () => {
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => handleTabChange(tab.id)}
                   className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 flex items-center space-x-2 ${
                     activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'
@@ -462,8 +600,13 @@ const Admin = () => {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">Quản lý người dùng</h2>
               <div className="flex space-x-3">
-                <Input placeholder="Tìm kiếm người dùng..." className="w-64" />
-                <Button>
+                <Input 
+                  placeholder="Tìm kiếm người dùng..." 
+                  className="w-64"
+                  value={userSearchTerm}
+                  onChange={(e) => setUserSearchTerm(e.target.value)}
+                />
+                <Button onClick={handleAddUser}>
                   <PlusIcon className="h-4 w-4 mr-2" />
                   Thêm người dùng
                 </Button>
@@ -500,7 +643,7 @@ const Admin = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {users.map((user) => (
+                      {filteredUsers.map((user) => (
                         <tr key={user.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4">
                             <div>
@@ -514,29 +657,60 @@ const Admin = () => {
                             </Badge>
                           </td>
                           <td className="px-6 py-4">
-                            <Badge variant={getStatusColor(user.status)}>
+                            <button
+                              onClick={() => handleToggleUserStatus(user)}
+                              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                user.status === 'active'
+                                  ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                  : 'bg-red-100 text-red-800 hover:bg-red-200'
+                              }`}
+                            >
                               {getStatusText(user.status)}
-                            </Badge>
+                            </button>
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900">
-                            {user.totalOrders}
+                            {user.totalOrders || 0}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900">
-                            {formatPrice(user.totalSpent)}
+                            {formatPrice(user.totalSpent || 0)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900">
                             {formatDate(user.joinDate)}
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex space-x-2">
-                              <Button variant="outline" size="sm">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleViewUser(user)}
+                                title="Xem chi tiết"
+                              >
                                 <EyeIcon className="h-4 w-4" />
                               </Button>
-                              <Button variant="outline" size="sm">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditUser(user)}
+                                title="Chỉnh sửa"
+                              >
                                 <PencilIcon className="h-4 w-4" />
                               </Button>
-                              <Button variant="outline" size="sm" className="text-red-600">
-                                <TrashIcon className="h-4 w-4" />
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className={user.status === 'active' ? 'text-red-600' : 'text-green-600'}
+                                onClick={() => handleToggleUserStatus(user)}
+                                title={user.status === 'active' ? 'Vô hiệu hóa' : 'Kích hoạt'}
+                              >
+                                {user.status === 'active' ? (
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636" />
+                                  </svg>
+                                ) : (
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                )}
                               </Button>
                             </div>
                           </td>
@@ -547,6 +721,33 @@ const Admin = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {filteredUsers.length === 0 && (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <div className="text-gray-400 mb-4">
+                    <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {userSearchTerm ? 'Không tìm thấy người dùng' : 'Chưa có người dùng nào'}
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    {userSearchTerm 
+                      ? 'Thử tìm kiếm với từ khóa khác'
+                      : 'Bắt đầu bằng cách thêm người dùng đầu tiên'
+                    }
+                  </p>
+                  {!userSearchTerm && (
+                    <Button onClick={handleAddUser} className="bg-blue-600 hover:bg-blue-700">
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      Thêm người dùng đầu tiên
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
 
@@ -834,6 +1035,278 @@ const Admin = () => {
           </div>
         )}
       </div>
+
+      {/* User Modal */}
+      {showUserModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {editingUser ? 'Chỉnh sửa người dùng' : 'Thêm người dùng mới'}
+              </h3>
+              <button
+                onClick={() => setShowUserModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              const data = {
+                name: formData.get('name'),
+                email: formData.get('email'),
+                password: formData.get('password'),
+                phone: formData.get('phone'),
+                address: formData.get('address')
+              };
+              
+              // Only include role and status when editing
+              if (editingUser) {
+                data.role = formData.get('role');
+                data.status = formData.get('status');
+                
+                // Remove password if editing and empty
+                if (!data.password) {
+                  delete data.password;
+                }
+              }
+              // Note: API không chấp nhận role và status khi tạo user mới
+              // Role và status sẽ được set mặc định bởi backend
+              
+              handleSubmitUser(data);
+            }} className="space-y-4">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Họ tên *
+                </label>
+                <Input
+                  name="name"
+                  defaultValue={editingUser?.name || ''}
+                  required
+                  placeholder="Nhập họ tên"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email *
+                </label>
+                <Input
+                  name="email"
+                  type="email"
+                  defaultValue={editingUser?.email || ''}
+                  required
+                  placeholder="Nhập email"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  Mật khẩu {!editingUser && '*'}
+                </label>
+                <Input
+                  name="password"
+                  type="password"
+                  required={!editingUser}
+                  placeholder={editingUser ? "Để trống nếu không đổi mật khẩu" : "Nhập mật khẩu"}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Số điện thoại
+                </label>
+                <Input
+                  name="phone"
+                  defaultValue={editingUser?.phone || ''}
+                  placeholder="Nhập số điện thoại"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+                  Địa chỉ
+                </label>
+                <textarea
+                  name="address"
+                  defaultValue={editingUser?.address || ''}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Nhập địa chỉ"
+                />
+              </div>
+
+              {/* Only show role and status when editing */}
+              {editingUser && (
+                <>
+                  <div>
+                    <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                      Vai trò *
+                    </label>
+                    <select
+                      name="role"
+                      defaultValue={editingUser?.role || 'customer'}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="customer">Khách hàng</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                      Trạng thái *
+                    </label>
+                    <select
+                      name="status"
+                      defaultValue={editingUser?.status || 'active'}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="active">Hoạt động</option>
+                      <option value="inactive">Không hoạt động</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Show info when creating new user */}
+              {!editingUser && (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <p className="text-sm text-blue-700">
+                    ℹ️ Người dùng mới sẽ được tạo. Vai trò và trạng thái sẽ được set bởi hệ thống.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowUserModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingUser}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmittingUser 
+                    ? (editingUser ? 'Đang cập nhật...' : 'Đang tạo...')
+                    : (editingUser ? 'Cập nhật' : 'Tạo mới')
+                  }
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* User Detail Modal */}
+      {showUserDetail && selectedUser && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">
+                Chi tiết người dùng
+              </h3>
+              <button
+                onClick={() => setShowUserDetail(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Họ tên</label>
+                  <p className="text-lg font-medium text-gray-900">{selectedUser.name}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Email</label>
+                  <p className="text-gray-900">{selectedUser.email}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Số điện thoại</label>
+                  <p className="text-gray-900">{selectedUser.phone || 'Chưa cập nhật'}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Vai trò</label>
+                  <Badge variant={selectedUser.role === 'admin' ? 'destructive' : 'default'}>
+                    {selectedUser.role === 'admin' ? 'Admin' : 'Khách hàng'}
+                  </Badge>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Trạng thái</label>
+                  <Badge variant={getStatusColor(selectedUser.status)}>
+                    {getStatusText(selectedUser.status)}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Địa chỉ</label>
+                  <p className="text-gray-900">{selectedUser.address || 'Chưa cập nhật'}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Ngày tham gia</label>
+                  <p className="text-gray-900">{formatDate(selectedUser.joinDate || selectedUser.createdAt)}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Tổng đơn hàng</label>
+                  <p className="text-lg font-semibold text-blue-600">{selectedUser.totalOrders || 0}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Tổng chi tiêu</label>
+                  <p className="text-lg font-semibold text-green-600">
+                    {formatPrice(selectedUser.totalSpent || 0)}
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Lần cập nhật cuối</label>
+                  <p className="text-gray-900">
+                    {selectedUser.updatedAt ? formatDate(selectedUser.updatedAt) : 'Chưa cập nhật'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
+              <button
+                onClick={() => setShowUserDetail(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Đóng
+              </button>
+              <button
+                onClick={() => {
+                  setShowUserDetail(false);
+                  handleEditUser(selectedUser);
+                }}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Chỉnh sửa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Category Modal */}
       {showCategoryModal && (

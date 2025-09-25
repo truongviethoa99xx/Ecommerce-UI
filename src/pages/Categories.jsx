@@ -62,7 +62,9 @@ const Categories = () => {
               className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
             >
               <div className="text-center">
-                <div className="text-5xl mb-4">📱</div>
+                <div className="text-5xl mb-4">
+                  <img src="https://www.pngfind.com/pngs/m/143-1434482_free-icons-png-red-shopping-icon-transparent-png.png" alt="shopping" width={100} height={100} />
+                </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
                   {category.name}
                 </h3>

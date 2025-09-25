@@ -36,17 +36,26 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Don't auto-redirect on 401, let components handle it
+    // Only clear auth storage for 401 errors
     if (error.response?.status === 401) {
-      // Unauthorized - clear auth and redirect to login
       localStorage.removeItem('auth-storage');
-      window.location.href = '/login';
-    } else if (error.response?.status >= 500) {
-      toast.error('Server error. Please try again later.');
-    } else if (error.response?.data?.message) {
-      toast.error(error.response.data.message);
-    } else if (error.message) {
-      toast.error(error.message);
     }
+    
+    // Don't show toast for login errors, let login component handle it
+    const isLoginError = error.config?.url?.includes('/auth/login') || 
+                        error.config?.url?.includes('/auth/admin/login');
+    
+    if (!isLoginError) {
+      if (error.response?.status >= 500) {
+        toast.error('Server error. Please try again later.');
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else if (error.message) {
+        toast.error(error.message);
+      }
+    }
+    
     return Promise.reject(error);
   }
 );

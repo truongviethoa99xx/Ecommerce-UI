@@ -6,8 +6,8 @@ export const authService = {
     return response.data;
   },
 
-  async adminLogin(username, password) {
-    const response = await api.post('/auth/admin/login', { username, password });
+  async adminLogin(email, password) {
+    const response = await api.post('/auth/admin/login', { email, password });
     return response.data;
   },
 
@@ -31,6 +31,6 @@ export const authService = {
   // Logout is handled locally (remove token)
   logout() {
     localStorage.removeItem('auth-storage');
-    window.location.href = '/login';
+    // Don't reload page, let the app handle navigation
   }
 }; 
