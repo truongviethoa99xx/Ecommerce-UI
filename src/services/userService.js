@@ -103,10 +103,10 @@ class UserService {
     }
   }
 
-  // POST /auth/admin - Tạo admin mới
+  // POST /auth/admin/register - Tạo admin mới
   async createStaff(data) {
     try {
-      const response = await api.post('/auth/admin', data);
+      const response = await api.post('/auth/admin/register', data);
       return response.data;
     } catch (error) {
       throw error;
@@ -116,7 +116,7 @@ class UserService {
   // PATCH /auth/admin/:id - Cập nhật thông tin admin
   async updateStaff(id, data) {
     try {
-      const response = await api.patch(`/auth/admin/${id}`, data);
+      const response = await api.post(`/auth/admin/${id}`, data);
       return response.data;
     } catch (error) {
       throw error;
@@ -124,9 +124,10 @@ class UserService {
   }
 
   // GET /auth/admin/:id - Lấy thông tin admin theo ID
-  async getStaff(id) {
+  async getStaffById(id) {
     try {
       const response = await api.get(`/auth/admin/${id}`);
+      console.log("🚀 ~ UserService ~ getStaffById ~ response:", response)
       return response.data;
     } catch (error) {
       throw error;
