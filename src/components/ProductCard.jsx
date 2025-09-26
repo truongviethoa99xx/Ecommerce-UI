@@ -32,12 +32,40 @@ const ProductCard = ({ product }) => {
     }).format(price);
   };
 
+  const normalizeImages = (value) => {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      // Try JSON array string
+      if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return parsed.filter(Boolean);
+        } catch (_) {}
+      }
+      // CSV fallback
+      if (trimmed.length > 0) {
+        return trimmed.split(",").map((s) => s.trim()).filter(Boolean);
+      }
+      return [];
+    }
+    if (value) return [value];
+    return [];
+  };
+
+  const images = (() => {
+    const arr = normalizeImages(product?.images);
+    if (arr.length > 0) return arr;
+    const fallback = normalizeImages(product?.image);
+    return fallback.length > 0 ? fallback : ["/placeholder-product.jpg"];
+  })();
+
   return (
     <div className="card overflow-hidden hover:shadow-lg transition-shadow duration-300">
       <Link to={`/products/${product.id}`} className="block">
         <div className="relative p-4">
           <img
-            src={product.images || "/placeholder-product.jpg"}
+            src={images[0] || "/placeholder-product.jpg"}
             alt={product.name}
             className="w-full h-48 object-cover"
           />

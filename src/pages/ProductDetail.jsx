@@ -362,7 +362,36 @@ const ProductDetail = () => {
     );
   }
 
-  const images = product.images || [product.image];
+  const normalizeImages = (value) => {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      // Try JSON array string
+      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('"[') && trimmed.endsWith(']"'))) {
+        try {
+          const parsed = JSON.parse(trimmed.replace(/^"|"$/g, ''));
+          if (Array.isArray(parsed)) return parsed.filter(Boolean);
+        } catch (_) {
+          // fall through to CSV parsing
+        }
+      }
+      // Try CSV
+      if (trimmed.length > 0) {
+        const parts = trimmed.split(',').map((s) => s.trim()).filter(Boolean);
+        if (parts.length > 0) return parts;
+      }
+      return [];
+    }
+    if (value) return [value];
+    return [];
+  };
+
+  const images = (() => {
+    const arr = normalizeImages(product.images);
+    if (arr.length > 0) return arr;
+    const fallback = normalizeImages(product.image);
+    return fallback.length > 0 ? fallback : [];
+  })();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -406,7 +435,7 @@ const ProductDetail = () => {
               </div>
 
               {/* Navigation Arrows */}
-              {images.length > 1 && (
+              {images && images.length > 1 && (
                 <>
                   <button
                     onClick={prevImage}
@@ -425,7 +454,7 @@ const ProductDetail = () => {
             </div>
 
             {/* Thumbnail Images */}
-            {images.length > 1 && (
+            {images && images.length > 1 && (
               <div className="grid grid-cols-5 gap-2">
                 {images.map((image, index) => (
                   <button
@@ -463,7 +492,7 @@ const ProductDetail = () => {
                 </span>
               </div>
               <span className="mx-4 text-gray-300">|</span>
-              <span className="text-gray-600">SKU: {product.sku}</span>
+              <span className="text-gray-600">SKU: {product.stock} {product.rating}</span>
             </div>
 
             {/* Price */}

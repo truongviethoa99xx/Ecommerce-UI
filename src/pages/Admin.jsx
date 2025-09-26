@@ -1572,11 +1572,7 @@ const Admin = () => {
                               <div className="flex items-center space-x-3">
                                 {product.images && product.images.length > 0 ? (
                                   <img
-                                    src={
-                                      Array.isArray(product.images)
-                                        ? product.images[0]
-                                        : product.images
-                                    }
+                                    src={product.images.split(",")[0]}
                                     alt={product.name}
                                     className="w-10 h-10 object-cover rounded-md"
                                   />
