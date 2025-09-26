@@ -1,11 +1,13 @@
 import {
   ChartBarIcon,
   CurrencyDollarIcon,
+  CheckCircleIcon,
   EyeIcon,
   FunnelIcon,
   PencilIcon,
   PlusIcon,
   ShoppingBagIcon,
+  NoSymbolIcon,
   StarIcon,
   TrashIcon,
   TruckIcon,
@@ -27,6 +29,7 @@ import { Input } from "../components/ui/Input";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { Tooltip } from "../components/ui/Tooltip";
 import { categoryService } from "../services/categoryService";
+import { statisticsService } from "../services/statisticsService";
 import { productService } from "../services/productService";
 import { userService } from "../services/userService";
 import { useAuthStore } from "../store/auth";
@@ -40,6 +43,7 @@ const Admin = () => {
   });
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({});
+  const [activities, setActivities] = useState([]);
   const [users, setUsers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
@@ -89,6 +93,41 @@ const Admin = () => {
     fetchAdminData();
   }, [isAuthenticated, user, navigate]);
 
+  // Fetch overview widgets and recent activities (additive; keep old cards)
+  useEffect(() => {
+    const fetchOverviewWidgets = async () => {
+      try {
+        const [usersGrowth, pendingOrders, revenue, avgRating, recent] = await Promise.all([
+          statisticsService.getUsersGrowth(),
+          statisticsService.getPendingOrders(),
+          statisticsService.getRevenueThisMonth(),
+          statisticsService.getAverageProductRating(),
+          statisticsService.getRecentActivities(),
+        ]);
+
+        setStats((prev) => ({
+          ...prev,
+          totalUsers: usersGrowth.totalUsers,
+          thisMonthNewUsers: usersGrowth.thisMonthNew,
+          prevMonthNewUsers: usersGrowth.prevMonthNew,
+          growthRate: usersGrowth.growthPercent,
+          pendingOrders: pendingOrders.pendingOrders,
+          totalRevenue: revenue.revenueThisMonth,
+          averageRating: avgRating.averageRating,
+        }));
+
+        setActivities(recent.activities || []);
+      } catch (e) {
+        // fail silently to preserve existing UI
+        console.log("overview widgets fetch failed", e);
+      }
+    };
+
+    if (isAuthenticated && user?.role === "admin") {
+      fetchOverviewWidgets();
+    }
+  }, [isAuthenticated, user]);
+
   // Effect to refetch products when category filter changes
   useEffect(() => {
     if (isAuthenticated && user?.role === "admin") {
@@ -99,7 +138,12 @@ const Admin = () => {
   const fetchAdminData = async () => {
     try {
       setLoading(true);
-      await Promise.all([fetchCategories(), fetchUsers(), fetchStaff(), fetchProducts()]);
+      await Promise.all([
+        fetchCategories(),
+        fetchUsers(),
+        fetchStaff(),
+        fetchProducts(),
+      ]);
     } catch (error) {
       console.error("Error fetching admin data:", error);
     } finally {
@@ -143,7 +187,7 @@ const Admin = () => {
       if (productSearchTerm) {
         params.search = productSearchTerm;
       }
-      
+
       const productsData = await productService.getProducts(params);
       setProducts(productsData.data || productsData || []);
     } catch (error) {
@@ -534,6 +578,14 @@ const Admin = () => {
     return colors[status] || "secondary";
   };
 
+  const getStatusUserColor = (status) => {
+    const colors = {
+      0: "secondary",
+      1: "success",
+    };
+    return colors[status] || "secondary";
+  };
+
   const getStatusText = (status) => {
     const texts = {
       active: "Hoạt động",
@@ -577,7 +629,7 @@ const Admin = () => {
               {[
                 { id: "overview", label: "Tổng quan", icon: ChartBarIcon },
                 { id: "staff", label: "Nhân viên", icon: UserGroupIcon },
-                { id: "users", label: "Người dùng", icon: UserGroupIcon },
+                { id: "users", label: "Khách hàng", icon: UserGroupIcon },
                 { id: "categories", label: "Danh mục", icon: StarIcon },
                 { id: "products", label: "Sản phẩm", icon: CurrencyDollarIcon },
                 { id: "orders", label: "Đơn hàng", icon: ShoppingBagIcon },
@@ -687,7 +739,7 @@ const Admin = () => {
               </Card>
             </div>
 
-            {/* Charts Section */}
+            {/* Charts and Activities Section (additive) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <Card>
                 <CardHeader>
@@ -732,30 +784,14 @@ const Admin = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <p className="text-sm">
-                        Đơn hàng #DH123 đã được giao thành công
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <p className="text-sm">
-                        Người dùng mới đăng ký: nguyenvanan@email.com
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                      <p className="text-sm">
-                        Sản phẩm iPhone 15 Pro sắp hết hàng
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <p className="text-sm">
-                        Đánh giá mới 5 sao cho MacBook Pro M3
-                      </p>
-                    </div>
+                    {(activities && activities.length > 0 ? activities : [
+                      "Không có hoạt động gần đây"
+                    ]).map((activity, index) => (
+                      <div key={index} className="flex items-center space-x-3">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <p className="text-sm">{activity}</p>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -778,10 +814,10 @@ const Admin = () => {
                   onChange={(e) => setUserSearchTerm(e.target.value)}
                 />
                 <Tooltip content="Thêm người dùng mới" placement="bottom">
-                <Button onClick={handleAddUser}>
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Thêm người dùng
-                </Button>
+                  <Button onClick={handleAddUser}>
+                    <PlusIcon className="h-4 w-4 mr-2" />
+                    Thêm người dùng
+                  </Button>
                 </Tooltip>
               </div>
             </div>
@@ -793,10 +829,7 @@ const Admin = () => {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Người dùng
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Vai trò
+                          Họ tên
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Trạng thái
@@ -818,7 +851,12 @@ const Admin = () => {
                     <tbody className="divide-y divide-gray-200">
                       {filteredUsers.map((user) => (
                         <tr key={user.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 flex items-center space-x-2">
+                            <img
+                              src={user.avatar}
+                              className="w-10 h-10 rounded-full"
+                              style={{ border: "1px solid #dfdfdf" }}
+                            />
                             <div>
                               <p className="font-medium text-gray-900">
                                 {user.name}
@@ -829,26 +867,19 @@ const Admin = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <Badge
-                              variant={
-                                user.role === "admin"
-                                  ? "destructive"
-                                  : "default"
-                              }
-                            >
-                              {user.role === "admin" ? "Admin" : "Khách hàng"}
-                            </Badge>
-                          </td>
-                          <td className="px-6 py-4">
                             <button
                               onClick={() => handleToggleUserStatus(user)}
                               className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                                user.status === "active"
+                                user.status == 1
                                   ? "bg-green-100 text-green-800 hover:bg-green-200"
                                   : "bg-red-100 text-red-800 hover:bg-red-200"
                               }`}
                             >
-                              {getStatusText(user.status)}
+                              {getStatusText(
+                                user.status == 1
+                                  ? "Đang hoạt động"
+                                  : "Tạm ngưng"
+                              )}
                             </button>
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900">
@@ -858,72 +889,76 @@ const Admin = () => {
                             {formatPrice(user.totalSpent || 0)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900">
-                            {formatDate(user.joinDate)}
+                            {formatDate(user.createdAt)}
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex space-x-2">
                               <Tooltip content="Xem chi tiết" placement="top">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleViewUser(user)}
-                              >
-                                <EyeIcon className="h-4 w-4" />
-                              </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleViewUser(user)}
+                                >
+                                  <EyeIcon className="h-4 w-4" />
+                                </Button>
                               </Tooltip>
                               <Tooltip content="Chỉnh sửa" placement="top">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditUser(user)}
-                              >
-                                <PencilIcon className="h-4 w-4" />
-                              </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditUser(user)}
+                                >
+                                  <PencilIcon className="h-4 w-4" />
+                                </Button>
                               </Tooltip>
-                              <Tooltip 
-                                content={user.status === "active" ? "Vô hiệu hóa" : "Kích hoạt"} 
+                              <Tooltip
+                                content={
+                                  user.status === "active"
+                                    ? "Vô hiệu hóa"
+                                    : "Kích hoạt"
+                                }
                                 placement="top"
                               >
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className={
-                                  user.status === "active"
-                                    ? "text-red-600"
-                                    : "text-green-600"
-                                }
-                                onClick={() => handleToggleUserStatus(user)}
-                              >
-                                {user.status === "active" ? (
-                                  <svg
-                                    className="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636"
-                                    />
-                                  </svg>
-                                ) : (
-                                  <svg
-                                    className="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    />
-                                  </svg>
-                                )}
-                              </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={
+                                    user.status === "active"
+                                      ? "text-red-600"
+                                      : "text-green-600"
+                                  }
+                                  onClick={() => handleToggleUserStatus(user)}
+                                >
+                                  {user.status === "active" ? (
+                                    <svg
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636"
+                                      />
+                                    </svg>
+                                  ) : (
+                                    <svg
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                      />
+                                    </svg>
+                                  )}
+                                </Button>
                               </Tooltip>
                             </div>
                           </td>
@@ -995,10 +1030,10 @@ const Admin = () => {
                   onChange={(e) => setStaffSearchTerm(e.target.value)}
                 />
                 <Tooltip content="Thêm nhân viên mới" placement="bottom">
-                <Button onClick={handleAddStaff}>
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Thêm nhân viên
-                </Button>
+                  <Button onClick={handleAddStaff}>
+                    <PlusIcon className="h-4 w-4 mr-2" />
+                    Thêm nhân viên
+                  </Button>
                 </Tooltip>
               </div>
             </div>
@@ -1033,7 +1068,12 @@ const Admin = () => {
                       {filteredStaff.map((staff) => (
                         <tr key={staff.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 flex items-center gap-2">
-                            <img src={staff.avatar} alt={staff.name} className="w-10 h-10 rounded-full" style={{ border: "1px solid #dfdfdf" }} />
+                            <img
+                              src={staff.avatar}
+                              alt={staff.name}
+                              className="w-10 h-10 rounded-full"
+                              style={{ border: "1px solid #dfdfdf" }}
+                            />
                             <div>
                               <p className="font-medium text-gray-900">
                                 {staff.name}
@@ -1071,100 +1111,79 @@ const Admin = () => {
                           <td className="px-6 py-4">
                             <div className="flex space-x-2">
                               <Tooltip content="Xem chi tiết" placement="top">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleViewStaff(staff)}
-                              >
-                                <EyeIcon className="h-4 w-4" />
-                              </Button>
-                              </Tooltip>
-                              <Tooltip content="Chỉnh sửa" placement="top">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditStaff(staff)}
-                              >
-                                <PencilIcon className="h-4 w-4" />
-                              </Button>
-                              </Tooltip>
-                              <Tooltip content="Đặt lại mật khẩu" placement="top">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleResetStaffPassword(staff)}
-                                className="text-blue-600"
-                              >
-                                <svg
-                                  className="h-4 w-4"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-                                  />
-                                </svg>
-                              </Button>
-                              </Tooltip>
-                              <Tooltip 
-                                content={staff.status === "active" ? "Vô hiệu hóa" : "Kích hoạt"} 
-                                placement="top"
-                              >
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className={
-                                  staff.status === "active"
-                                    ? "text-red-600"
-                                    : "text-green-600"
-                                }
-                                onClick={() => handleToggleStaffStatus(staff)}
-                              >
-                                {staff.status === "active" ? (
-                                  <svg
-                                    className="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636"
-                                    />
-                                  </svg>
-                                ) : (
-                                  <svg
-                                    className="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    />
-                                  </svg>
-                                )}
-                                </Button>
-                              </Tooltip>
-                              <Tooltip content="Xóa nhân viên" placement="top">
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleDeleteStaff(staff.id)}
-                                  className="text-red-600"
+                                  onClick={() => handleViewStaff(staff)}
                                 >
-                                  <TrashIcon className="h-4 w-4" />
+                                  <EyeIcon className="h-4 w-4" />
                                 </Button>
                               </Tooltip>
+                              <Tooltip content="Chỉnh sửa" placement="top">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditStaff(staff)}
+                                >
+                                  <PencilIcon className="h-4 w-4" />
+                                </Button>
+                              </Tooltip>
+                              <Tooltip
+                                content="Đặt lại mật khẩu"
+                                placement="top"
+                              >
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleResetStaffPassword(staff)
+                                  }
+                                  className="text-blue-600"
+                                >
+                                  <svg
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                                    />
+                                  </svg>
+                                </Button>
+                              </Tooltip>
+                              {staff.id !== 1 && (
+                                <Tooltip
+                                  content={
+                                    staff.status === "active"
+                                      ? "Vô hiệu hóa"
+                                      : "Kích hoạt"
+                                  }
+                                  placement="top"
+                                >
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className={
+                                      staff.status === "active"
+                                        ? "text-red-600"
+                                        : "text-green-600"
+                                    }
+                                    onClick={() =>
+                                      handleToggleStaffStatus(staff)
+                                    }
+                                  >
+                                    {staff.status === "active" ? (
+                                      <NoSymbolIcon className="h-4 w-4" />
+                                    ) : (
+                                      <CheckCircleIcon className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </Tooltip>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1292,12 +1311,18 @@ const Admin = () => {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex space-x-2">
-                              <Tooltip content="Xem chi tiết đơn hàng" placement="top">
+                              <Tooltip
+                                content="Xem chi tiết đơn hàng"
+                                placement="top"
+                              >
                                 <Button variant="outline" size="sm">
                                   <EyeIcon className="h-4 w-4" />
                                 </Button>
                               </Tooltip>
-                              <Tooltip content="Cập nhật trạng thái giao hàng" placement="top">
+                              <Tooltip
+                                content="Cập nhật trạng thái giao hàng"
+                                placement="top"
+                              >
                                 <Button variant="outline" size="sm">
                                   <TruckIcon className="h-4 w-4" />
                                 </Button>
@@ -1322,13 +1347,13 @@ const Admin = () => {
                 Quản lý danh mục
               </h2>
               <Tooltip content="Thêm danh mục mới" placement="bottom">
-              <Button
-                onClick={handleAddCategory}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Thêm danh mục
-              </Button>
+                <Button
+                  onClick={handleAddCategory}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Thêm danh mục
+                </Button>
               </Tooltip>
             </div>
 
@@ -1345,55 +1370,71 @@ const Admin = () => {
               />
             </div>
 
-            {/* Categories Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredCategories.map((category) => (
-                <Card
-                  key={category.id}
-                  className="hover:shadow-lg transition-shadow"
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {category.name}
-                      </h3>
-                      <div className="flex space-x-2">
-                        <Tooltip content="Chỉnh sửa" placement="top">
-                          <button
-                            onClick={() => handleEditCategory(category)}
-                            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                          >
-                            <PencilIcon className="h-5 w-5" />
-                          </button>
-                        </Tooltip>
-                        <Tooltip content="Xóa" placement="top">
-                          <button
-                            onClick={() => handleDeleteCategory(category.id)}
-                            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
-                        </Tooltip>
-                      </div>
-                    </div>
-
-                    <p className="text-gray-600 text-sm mb-4">
-                      {category.description || "Không có mô tả"}
-                    </p>
-
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>ID: {category.id}</span>
-                      <span>
-                        Tạo:{" "}
-                        {new Date(category.createdAt).toLocaleDateString(
-                          "vi-VN"
-                        )}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            {/* Categories Table */}
+            {filteredCategories.length > 0 && (
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Danh mục
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Mô tả
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Ngày tạo
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Thao tác
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {filteredCategories.map((category) => (
+                          <tr key={category.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              <div className="font-medium">{category.name}</div>
+                              <div className="text-xs text-gray-500">ID: {category.id}</div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-700">
+                              {category.description || "Không có mô tả"}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              {formatDate(category.createdAt)}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex space-x-2">
+                                <Tooltip content="Chỉnh sửa" placement="top">
+                                  <button
+                                    onClick={() => handleEditCategory(category)}
+                                    className="p-2 border border-gray-300 rounded-md text-gray-600 hover:text-blue-600 hover:border-blue-300 transition-colors"
+                                    title="Chỉnh sửa"
+                                  >
+                                    <PencilIcon className="h-4 w-4" />
+                                  </button>
+                                </Tooltip>
+                                <Tooltip content="Xóa" placement="top">
+                                  <button
+                                    onClick={() => handleDeleteCategory(category.id)}
+                                    className="p-2 border border-gray-300 rounded-md text-gray-600 hover:text-red-600 hover:border-red-300 transition-colors"
+                                    title="Xóa"
+                                  >
+                                    <TrashIcon className="h-4 w-4" />
+                                  </button>
+                                </Tooltip>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {filteredCategories.length === 0 && (
               <Card>
@@ -1458,12 +1499,12 @@ const Admin = () => {
             {/* Search and Filter Bar */}
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
-                <Input 
-                  placeholder="Tìm kiếm sản phẩm..." 
+                <Input
+                  placeholder="Tìm kiếm sản phẩm..."
                   className="w-full"
                   value={productSearchTerm}
                   onChange={(e) => setProductSearchTerm(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleProductSearch()}
+                  onKeyPress={(e) => e.key === "Enter" && handleProductSearch()}
                 />
               </div>
               <div className="flex gap-3">
@@ -1522,81 +1563,103 @@ const Admin = () => {
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {products.map((product) => {
-                        const category = categories.find(cat => cat.id === product.categoryId);
+                        const category = categories.find(
+                          (cat) => cat.id === product.categoryId
+                        );
                         return (
-                        <tr key={product.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4">
+                          <tr key={product.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4">
                               <div className="flex items-center space-x-3">
                                 {product.images && product.images.length > 0 ? (
                                   <img
-                                    src={Array.isArray(product.images) ? product.images[0] : product.images}
+                                    src={
+                                      Array.isArray(product.images)
+                                        ? product.images[0]
+                                        : product.images
+                                    }
                                     alt={product.name}
                                     className="w-10 h-10 object-cover rounded-md"
                                   />
                                 ) : (
                                   <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center">
-                                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    <svg
+                                      className="w-6 h-6 text-gray-400"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                      />
                                     </svg>
                                   </div>
                                 )}
                                 <div>
-                            <p className="font-medium text-gray-900">
-                              {product.name}
-                            </p>
+                                  <p className="font-medium text-gray-900">
+                                    {product.name}
+                                  </p>
                                   <p className="text-sm text-gray-500 truncate max-w-xs">
                                     {product.description}
                                   </p>
                                 </div>
                               </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
                               <Badge variant="outline">
-                                {category ? category.name : 'Không có danh mục'}
+                                {category ? category.name : "Không có danh mục"}
                               </Badge>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
                               <div>
-                                <span className="font-medium">{formatPrice(product.price)}</span>
+                                <span className="font-medium">
+                                  {formatPrice(product.price)}
+                                </span>
                                 {product.discount > 0 && (
                                   <div className="text-xs text-red-600">
                                     Giảm {product.discount}%
                                   </div>
                                 )}
                               </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            <span
-                              className={
-                                product.stock === 0
-                                  ? "text-red-600 font-medium"
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              <span
+                                className={
+                                  product.stock === 0
+                                    ? "text-red-600 font-medium"
                                     : product.stock < 10
                                     ? "text-yellow-600 font-medium"
-                                  : ""
-                              }
-                            >
+                                    : ""
+                                }
+                              >
                                 {product.stock || 0}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
                               {product.sales || 0}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            <div className="flex items-center space-x-1">
-                              <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              <div className="flex items-center space-x-1">
+                                <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
                                 <span>{product.rating || 0}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                              <Badge variant={getStatusColor(product.status || 'active')}>
-                                {getStatusText(product.status || 'active')}
-                            </Badge>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex space-x-2">
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <Badge
+                                variant={getStatusColor(
+                                  product.status || "active"
+                                )}
+                              >
+                                {getStatusText(product.status || "active")}
+                              </Badge>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex space-x-2">
                                 <Tooltip content="Xem chi tiết" placement="top">
-                                  <Button 
-                                    variant="outline" 
+                                  <Button
+                                    variant="outline"
                                     size="sm"
                                     onClick={() => handleViewProduct(product)}
                                   >
@@ -1604,8 +1667,8 @@ const Admin = () => {
                                   </Button>
                                 </Tooltip>
                                 <Tooltip content="Chỉnh sửa" placement="top">
-                                  <Button 
-                                    variant="outline" 
+                                  <Button
+                                    variant="outline"
                                     size="sm"
                                     onClick={() => handleEditProduct(product)}
                                   >
@@ -1617,14 +1680,16 @@ const Admin = () => {
                                     variant="outline"
                                     size="sm"
                                     className="text-red-600"
-                                    onClick={() => handleDeleteProduct(product.id)}
+                                    onClick={() =>
+                                      handleDeleteProduct(product.id)
+                                    }
                                   >
                                     <TrashIcon className="h-4 w-4" />
                                   </Button>
                                 </Tooltip>
-                            </div>
-                          </td>
-                        </tr>
+                              </div>
+                            </td>
+                          </tr>
                         );
                       })}
                     </tbody>
@@ -1832,8 +1897,8 @@ const Admin = () => {
                 <Input
                   name="images"
                   defaultValue={
-                    editingProduct?.images 
-                      ? Array.isArray(editingProduct.images) 
+                    editingProduct?.images
+                      ? Array.isArray(editingProduct.images)
                         ? editingProduct.images.join(", ")
                         : editingProduct.images
                       : ""
@@ -1888,7 +1953,9 @@ const Admin = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Product Images */}
               <div>
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Hình ảnh</h4>
+                <h4 className="text-lg font-medium text-gray-900 mb-4">
+                  Hình ảnh
+                </h4>
                 {selectedProduct.images && selectedProduct.images.length > 0 ? (
                   <div className="space-y-4">
                     {Array.isArray(selectedProduct.images) ? (
@@ -1910,8 +1977,18 @@ const Admin = () => {
                   </div>
                 ) : (
                   <div className="w-full h-64 bg-gray-200 rounded-lg flex items-center justify-center">
-                    <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <svg
+                      className="w-16 h-16 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
                     </svg>
                   </div>
                 )}
@@ -1951,13 +2028,15 @@ const Admin = () => {
                     <label className="block text-sm font-medium text-gray-500">
                       Tồn kho
                     </label>
-                    <p className={`text-lg font-medium ${
-                      selectedProduct.stock === 0 
-                        ? "text-red-600" 
-                        : selectedProduct.stock < 10 
-                        ? "text-yellow-600" 
-                        : "text-green-600"
-                    }`}>
+                    <p
+                      className={`text-lg font-medium ${
+                        selectedProduct.stock === 0
+                          ? "text-red-600"
+                          : selectedProduct.stock < 10
+                          ? "text-yellow-600"
+                          : "text-green-600"
+                      }`}
+                    >
                       {selectedProduct.stock || 0}
                     </p>
                   </div>
@@ -1977,7 +2056,9 @@ const Admin = () => {
                     Danh mục
                   </label>
                   <Badge variant="outline">
-                    {categories.find(cat => cat.id === selectedProduct.categoryId)?.name || 'Không có danh mục'}
+                    {categories.find(
+                      (cat) => cat.id === selectedProduct.categoryId
+                    )?.name || "Không có danh mục"}
                   </Badge>
                 </div>
 
@@ -1997,8 +2078,10 @@ const Admin = () => {
                   <label className="block text-sm font-medium text-gray-500">
                     Trạng thái
                   </label>
-                  <Badge variant={getStatusColor(selectedProduct.status || 'active')}>
-                    {getStatusText(selectedProduct.status || 'active')}
+                  <Badge
+                    variant={getStatusColor(selectedProduct.status || "active")}
+                  >
+                    {getStatusText(selectedProduct.status || "active")}
                   </Badge>
                 </div>
 
@@ -2017,10 +2100,9 @@ const Admin = () => {
                       Cập nhật cuối
                     </label>
                     <p className="text-gray-900">
-                      {selectedProduct.updatedAt 
+                      {selectedProduct.updatedAt
                         ? formatDate(selectedProduct.updatedAt)
-                        : "Chưa cập nhật"
-                      }
+                        : "Chưa cập nhật"}
                     </p>
                   </div>
                 </div>
@@ -2078,9 +2160,6 @@ const Admin = () => {
 
                 // Only include role and status when editing
                 if (editingUser) {
-                  data.role = formData.get("role");
-                  data.status = formData.get("status");
-
                   // Remove password if editing and empty
                   if (!data.password) {
                     delete data.password;
@@ -2173,47 +2252,6 @@ const Admin = () => {
                 />
               </div>
 
-              {/* Only show role and status when editing */}
-              {editingUser && (
-                <>
-                  <div>
-                    <label
-                      htmlFor="role"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Vai trò *
-                    </label>
-                    <select
-                      name="role"
-                      defaultValue={editingUser?.role || "customer"}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="customer">Khách hàng</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="status"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Trạng thái *
-                    </label>
-                    <select
-                      name="status"
-                      defaultValue={editingUser?.status || "active"}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="active">Hoạt động</option>
-                      <option value="inactive">Không hoạt động</option>
-                    </select>
-                  </div>
-                </>
-              )}
-
               {/* Show info when creating new user */}
               {!editingUser && (
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
@@ -2296,23 +2334,18 @@ const Admin = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-500">
-                    Vai trò
-                  </label>
-                  <Badge
-                    variant={
-                      selectedUser.role === "admin" ? "destructive" : "default"
-                    }
-                  >
-                    {selectedUser.role === "admin" ? "Admin" : "Khách hàng"}
-                  </Badge>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">
                     Trạng thái
                   </label>
-                  <Badge variant={getStatusColor(selectedUser.status)}>
-                    {getStatusText(selectedUser.status)}
+                  <Badge
+                    className={
+                      selectedUser.status == 1
+                        ? "bg-green-100 text-green-800 hover:bg-green-200"
+                        : "bg-red-100 text-red-800 hover:bg-red-200"
+                    }
+                  >
+                    {getStatusText(
+                      selectedUser.status == 1 ? "Đang hoạt động" : "Tạm ngưng"
+                    )}
                   </Badge>
                 </div>
               </div>
@@ -2353,17 +2386,6 @@ const Admin = () => {
                   </label>
                   <p className="text-lg font-semibold text-green-600">
                     {formatPrice(selectedUser.totalSpent || 0)}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">
-                    Lần cập nhật cuối
-                  </label>
-                  <p className="text-gray-900">
-                    {selectedUser.updatedAt
-                      ? formatDate(selectedUser.updatedAt)
-                      : "Chưa cập nhật"}
                   </p>
                 </div>
               </div>
@@ -2540,7 +2562,8 @@ const Admin = () => {
               {!editingStaff && (
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                   <p className="text-sm text-blue-700">
-                    ℹ️ Nhân viên mới sẽ được tạo với vai trò admin. Chỉ cần nhập tên, email, tên đăng nhập và mật khẩu.
+                    ℹ️ Nhân viên mới sẽ được tạo với vai trò admin. Chỉ cần nhập
+                    tên, email, tên đăng nhập và mật khẩu.
                   </p>
                 </div>
               )}

@@ -41,16 +41,6 @@ class UserService {
     }
   }
 
-  // DELETE /users/:id - Xóa người dùng (Admin only)
-  async deleteUser(id) {
-    try {
-      const response = await api.delete(`/users/${id}`);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  }
-
   // PATCH /users/:id/status - Bật/tắt trạng thái người dùng (Admin only)
   async toggleUserStatus(id, status) {
     try {
